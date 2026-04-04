@@ -4,6 +4,12 @@ import CitySelector from './components/CitySelector'
 import CorridorPanel from './components/CorridorPanel'
 import SegmentEditor from './components/SegmentEditor'
 import AnalyzeActions from './components/AnalyzeActions'
+import RecommendationPanel from './components/RecommendationPanel'
+import ResultsSummaryCards from './components/ResultsSummaryCards'
+import CorridorComparisonChart from './components/CorridorComparisonChart'
+import SegmentBreakdownTable from './components/SegmentBreakdownTable'
+import SectionTradeoffCard from './components/SectionTradeoffCard'
+import CommunityImpactNote from './components/CommunityImpactNote'
 import { createDefaultScenario, corridorGeojson } from './components/defaultScenario'
 import { analyzeScenario } from './api'
 
@@ -17,21 +23,15 @@ function App() {
   const [error, setError] = useState(null)
 
   const city = scenario.cityId
-
-  // --- City ---
   const handleCityChange = useCallback((cityId) => {
     setScenario(createDefaultScenario(cityId))
     setActiveCorridorId('alt-a')
     setResults(null)
   }, [])
 
-  // --- Corridor CRUD ---
   const updateScenario = (fn) => setScenario((prev) => ({ ...prev, corridors: fn(prev.corridors) }))
-
   const handleSelectCorridor = (id) => setActiveCorridorId(id)
-
-  const handleRenameCorridor = (id, name) =>
-    updateScenario((cs) => cs.map((c) => (c.id === id ? { ...c, name } : c)))
+  const handleRenameCorridor = (id, name) => updateScenario((cs) => cs.map((c) => (c.id === id ? { ...c, name } : c)))
 
   const handleAddCorridor = () => {
     const id = `alt-${++nextId}`
@@ -46,10 +46,9 @@ function App() {
 
   const handleRemoveCorridor = (id) => {
     updateScenario((cs) => cs.filter((c) => c.id !== id))
-    if (activeCorridorId === id) setActiveCorridorId((prev) => scenario.corridors.find((c) => c.id !== id)?.id || '')
+    if (activeCorridorId === id) setActiveCorridorId(scenario.corridors.find((c) => c.id !== id)?.id || '')
   }
 
-  // --- Segment CRUD ---
   const handleAddSegment = (corridorId) => {
     const segId = `seg-${++nextId}`
     updateScenario((cs) => cs.map((c) => c.id !== corridorId ? c : { ...c, segments: [...c.segments, {
@@ -65,26 +64,20 @@ function App() {
   const handleRemoveSegment = (corridorId, segId) =>
     updateScenario((cs) => cs.map((c) => c.id !== corridorId ? c : { ...c, segments: c.segments.filter((s) => s.id !== segId) }))
 
-  // --- Analyze ---
   const handleAnalyze = async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const res = await analyzeScenario(scenario)
-      setResults(res)
-    } catch (e) {
-      setError(e.message)
-    } finally {
-      setLoading(false)
-    }
+    setLoading(true); setError(null)
+    try { setResults(await analyzeScenario(scenario)) }
+    catch (e) { setError(e.message) }
+    finally { setLoading(false) }
   }
 
   const activeCorridor = scenario.corridors.find((c) => c.id === activeCorridorId)
   const mapCorridors = scenario.corridors.map((c) => ({ id: c.id, geojson: corridorGeojson(c.id, city) }))
+  const cr = results?.corridorResults
+  const rec = results?.recommendation
 
   return (
     <div className="flex h-screen flex-col bg-gray-900 text-white">
-      {/* Header */}
       <header className="flex items-center justify-between border-b border-gray-700 px-5 py-3">
         <div>
           <p className="text-[10px] uppercase tracking-[0.3em] text-emerald-400">Innovation Hacks 2.0</p>
@@ -93,39 +86,35 @@ function App() {
         <CitySelector city={city} onCityChange={handleCityChange} />
       </header>
 
-      {/* Main */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Map */}
-        <div className="relative flex-1">
-          <CorridorMap city={city} corridors={mapCorridors} />
+        {/* Left: Map + Results */}
+        <div className="flex flex-1 flex-col overflow-y-auto">
+          <div className="relative" style={{ minHeight: results ? 320 : 500 }}>
+            <CorridorMap city={city} corridors={mapCorridors} />
+          </div>
           {results && (
-            <div className="absolute bottom-4 left-4 rounded-lg bg-gray-900/90 px-4 py-3 text-sm backdrop-blur">
-              <p className="font-medium text-emerald-400">Recommendation</p>
-              <p className="mt-1 max-w-sm text-xs text-gray-300">{results.recommendation?.summary}</p>
+            <div className="space-y-5 p-5">
+              <RecommendationPanel recommendation={rec} corridorResults={cr} />
+              <ResultsSummaryCards corridorResults={cr} bestOverallId={rec?.bestOverallId} />
+              <CorridorComparisonChart corridorResults={cr} />
+              <SectionTradeoffCard corridorResults={cr} />
+              <SegmentBreakdownTable corridorResults={cr} />
+              <CommunityImpactNote corridorResults={cr} recommendation={rec} />
             </div>
           )}
         </div>
 
-        {/* Sidebar */}
-        <aside className="flex w-[380px] flex-col overflow-y-auto border-l border-gray-700 bg-gray-800">
+        {/* Right: Sidebar */}
+        <aside className="flex w-[380px] shrink-0 flex-col overflow-y-auto border-l border-gray-700 bg-gray-800">
           <div className="flex-1 space-y-4 p-4">
-            {/* Project info */}
             <input value={scenario.projectName} onChange={(e) => setScenario((s) => ({ ...s, projectName: e.target.value }))}
               className="w-full bg-transparent text-sm font-semibold text-white focus:outline-none" placeholder="Project name" />
-
-            <CorridorPanel
-              corridors={scenario.corridors} activeCorridorId={activeCorridorId}
+            <CorridorPanel corridors={scenario.corridors} activeCorridorId={activeCorridorId}
               onSelectCorridor={handleSelectCorridor} onRenameCorridor={handleRenameCorridor}
-              onAddCorridor={handleAddCorridor} onRemoveCorridor={handleRemoveCorridor}
-              onAddSegment={handleAddSegment}
-            />
-
-            {/* Segment editors for active corridor */}
+              onAddCorridor={handleAddCorridor} onRemoveCorridor={handleRemoveCorridor} onAddSegment={handleAddSegment} />
             {activeCorridor && (
               <div className="space-y-2">
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400">
-                  Segments — {activeCorridor.name}
-                </h3>
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400">Segments — {activeCorridor.name}</h3>
                 {activeCorridor.segments.map((seg) => (
                   <SegmentEditor key={seg.id} segment={seg}
                     onUpdate={(s) => handleUpdateSegment(activeCorridorId, s)}
@@ -133,13 +122,10 @@ function App() {
                 ))}
               </div>
             )}
-
             {error && <p className="text-xs text-red-400">{error}</p>}
           </div>
-
           <div className="border-t border-gray-700 p-4">
-            <AnalyzeActions onAnalyze={handleAnalyze} onReset={() => setResults(null)}
-              loading={loading} hasResults={!!results} />
+            <AnalyzeActions onAnalyze={handleAnalyze} onReset={() => setResults(null)} loading={loading} hasResults={!!results} />
           </div>
         </aside>
       </div>
