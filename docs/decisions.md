@@ -17,3 +17,9 @@
 **Why this approach:** The team's strongest differentiator is real civil engineering knowledge (slab optimization, buildability, FRC). A transit corridor comparison tool leverages that expertise while directly addressing Amazon's sustainability challenge with quantifiable CO2e impact metrics.
 **Files changed:** CLAUDE.md, package.json, src/frontend/index.html, App.jsx, api.js, all .claude/commands/*.md, all .claude/rules/*.md, .claude/docs/valley-metro-frc-case-study.md, Github_repo/, docs/, specs/ (6 spec files)
 **Next:** Execute specs in order — analysis engine first, then API, map, dashboard.
+
+## 2026-04-04 — Geospatial foundation layer
+**What was built:** Installed MapLibre GL JS, Terra Draw, Turf, H3, and node-gtfs. Created utility boundary files for map rendering, corridor drawing, geometry/catchment analysis, and optional GTFS context. Wired CorridorMap into App.jsx with city preset selector and map+sidebar layout.
+**Why this approach:** The spec calls for thin utility boundaries so later specs (analysis engine, map builder, dashboard) consume stable helpers instead of scattering library calls. Phoenix/Denver/Portland presets and 20 Valley Metro Rail fallback stops ship without any external feed dependency.
+**Files changed:** src/frontend/src/components/CorridorMap.jsx, mapUtils.js, drawUtils.js (new), src/backend/analysis/geospatialUtils.js, gtfsContext.js (new), src/frontend/src/App.jsx (updated), src/frontend/package.json, netlify/functions/package.json
+**Next:** Execute transit-analysis-engine.md — deterministic scoring module that everything else depends on.
