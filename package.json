@@ -2,7 +2,7 @@
   "name": "greenroute",
   "version": "0.1.0",
   "private": true,
-  "description": "Sustainable Supply Chain Intelligence — Amazon Sustainability Track, Innovation Hacks 2.0",
+  "description": "GreenRoute Transit - Embodied Carbon Transit Design Assistant for Innovation Hacks 2.0",
   "scripts": {
     "dev": "netlify dev",
     "build": "cd src/frontend && npm install && npm run build"

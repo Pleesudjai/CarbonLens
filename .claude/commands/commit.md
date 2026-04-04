@@ -1,4 +1,4 @@
-# /commit — GreenRoute Commit and Document
+# /commit - Project Commit and Document
 
 Run after completing any feature, fix, or significant change.
 
@@ -7,7 +7,7 @@ Run after completing any feature, fix, or significant change.
 Append to `docs/decisions.md`:
 
 ```markdown
-## [timestamp] — [Feature/Fix Name]
+## [timestamp] - [Feature/Fix Name]
 **What was built:** [1-2 sentences]
 **Why this approach:** [key technical or product decision]
 **Files changed:** [list]
@@ -27,22 +27,22 @@ git commit -m "[type]: [short description]
 **Commit types:**
 | Type | Use for |
 |------|---------|
-| `feat` | New feature (GEE analysis, new UI component, emissions calculation) |
+| `feat` | New feature (analysis engine, new UI component, corridor builder, dashboard) |
 | `fix` | Bug fix (API error, broken render, wrong calculation) |
-| `data` | GEE script or satellite imagery pipeline change |
+| `data` | Scenario preset, factor table, or heuristic constant change |
 | `deploy` | netlify.toml, env var setup |
 | `refactor` | Code cleanup, no behavior change |
 | `docs` | CLAUDE.md, decisions.md, handoff.md update |
 
 **Examples:**
-- `feat: add warehouse density heatmap from Sentinel-2 imagery`
-- `fix: handle GEE rate limit with exponential backoff`
-- `data: add nighttime lights layer for logistics corridor detection`
+- `feat: add corridor comparison dashboard for transit scenarios`
+- `fix: normalize buildability score in analysis engine`
+- `data: tune Phoenix scenario presets and traffic factors`
 - `deploy: set Netlify function timeout to 26s`
 
 ## Part 3: Update AI layer (if applicable)
 
 If this session revealed a better way to work:
-- New coding pattern → add to `.claude/rules/backend.md` or `frontend.md`
-- New GEE strategy → update `.claude/rules/gee-layer.md`
-- New architecture decision → update `CLAUDE.md`
+- New coding pattern -> add to `.claude/rules/backend.md` or `frontend.md`
+- New GEE strategy -> update `.claude/rules/gee-layer.md` only if the work truly used GEE
+- New architecture decision -> update `CLAUDE.md`
