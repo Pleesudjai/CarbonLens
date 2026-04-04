@@ -35,3 +35,9 @@
 **Why this approach:** Thin function layer keeps the contract simple — receive JSON, validate, call engine, return results. Accepts both `corridorAlternatives` and `corridors` so frontend and API spec stay flexible. Empty-body fallback makes demo instant without frontend form wiring.
 **Files changed:** netlify/functions/analyze.js (new), src/frontend/src/api.js (updated)
 **Next:** Execute transit-map-scenario-builder.md — MapLibre corridor drawing + city presets.
+
+## 2026-04-04 — Map scenario builder (frontend UI)
+**What was built:** Full map-first scenario builder with CitySelector (Phoenix/Seattle/Portland), CorridorPanel (add/remove/rename up to 3 corridors), collapsible SegmentEditor (type, section family, planning factors, community factors), AnalyzeActions (button + spinner), and representative corridor geometries on MapLibre. App.jsx rewired with complete scenario state management — state shape matches API contract directly. All components at or under 150 lines.
+**Why this approach:** Spec calls for a Google Maps-style planning workflow. Collapsible segment editors keep the sidebar usable with many fields. State shape mirrors the API payload so analyze sends scenario directly without transformation. Representative line geometries on the map give visual context without requiring full drawing tools for MVP.
+**Files changed:** App.jsx (rewritten), defaultScenario.js (new), CitySelector.jsx (new), CorridorPanel.jsx (new), SegmentEditor.jsx (new), AnalyzeActions.jsx (new), mapUtils.js (Seattle added)
+**Next:** Execute transit-results-dashboard.md — comparison charts, rankings, and recommendation display.

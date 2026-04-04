@@ -11,11 +11,11 @@ export const CITY_PRESETS = {
     zoom: 11.5,
     bbox: [-112.35, 33.28, -111.80, 33.65],
   },
-  denver: {
-    name: 'Denver, CO',
-    center: [-104.9903, 39.7392],
+  seattle: {
+    name: 'Seattle, WA',
+    center: [-122.3321, 47.6062],
     zoom: 11.5,
-    bbox: [-105.15, 39.60, -104.80, 39.90],
+    bbox: [-122.45, 47.50, -122.22, 47.72],
   },
   portland: {
     name: 'Portland, OR',
