@@ -2,7 +2,8 @@
  * drawUtils.js — Terra Draw setup for conceptual corridor sketching.
  * Wraps Terra Draw so the map component only calls initDraw / cleanupDraw.
  */
-import { TerraDraw, TerraDrawMapLibreGLAdapter, TerraDrawLineStringMode, TerraDrawSelectMode } from 'terra-draw'
+import { TerraDraw, TerraDrawLineStringMode, TerraDrawSelectMode } from 'terra-draw'
+import { TerraDrawMapLibreGLAdapter } from 'terra-draw-maplibre-gl-adapter'
 
 /**
  * Initialize Terra Draw on a MapLibre map instance.

@@ -26,6 +26,8 @@ function App() {
   const [error, setError] = useState(null)
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [lens, setLens] = useState('planner')
+  const [drawMode, setDrawMode] = useState(false)
+  const [customLines, setCustomLines] = useState({})
 
   const city = scenario.cityId
   const handleCityChange = useCallback((cityId) => {
@@ -76,7 +78,11 @@ function App() {
   }
 
   const activeCorridor = scenario.corridors.find((c) => c.id === activeCorridorId)
-  const mapCorridors = scenario.corridors.map((c) => ({ id: c.id, geojson: corridorGeojson(c.id, city) }))
+  const mapCorridors = scenario.corridors.map((c) => ({ id: c.id, geojson: customLines[c.id] || corridorGeojson(c.id, city) }))
+  const handleDrawComplete = (geojson) => {
+    setCustomLines((prev) => ({ ...prev, [activeCorridorId]: geojson }))
+    setDrawMode(false)
+  }
   const cr = results?.corridorResults
   const rec = results?.recommendation
 
@@ -87,7 +93,13 @@ function App() {
       <div className="flex flex-1 overflow-hidden">
         <div className="flex flex-1 flex-col overflow-y-auto">
           <div className="relative" style={{ minHeight: results ? 320 : 500 }}>
-            <CorridorMap city={city} corridors={mapCorridors} />
+            <CorridorMap city={city} corridors={mapCorridors} drawMode={drawMode} onDrawComplete={handleDrawComplete} />
+            <button onClick={() => setDrawMode((d) => !d)}
+              className={`absolute top-4 left-4 z-10 rounded-lg px-3 py-2 text-xs font-medium shadow-md transition-colors ${
+                drawMode ? 'bg-emerald-600 text-white' : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
+              }`}>
+              {drawMode ? `Drawing ${activeCorridor?.name || ''}... (dbl-click to finish)` : `Draw ${activeCorridor?.name || 'Corridor'}`}
+            </button>
             {cr && <MapStatsOverlay corridorResults={cr} activeCorridorId={activeCorridorId} />}
           </div>
           {results && (
