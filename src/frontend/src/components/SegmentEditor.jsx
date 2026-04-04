@@ -24,7 +24,7 @@ const CONTEXTS = [
 function Field({ label, children }) {
   return (
     <label className="flex flex-col gap-0.5">
-      <span className="text-[10px] uppercase tracking-wider text-gray-500">{label}</span>
+      <span className="text-[10px] uppercase tracking-wider text-gray-400">{label}</span>
       {children}
     </label>
   )
@@ -33,7 +33,7 @@ function Field({ label, children }) {
 function Select({ value, onChange, options }) {
   return (
     <select value={value} onChange={onChange}
-      className="rounded border border-gray-600 bg-gray-800 px-2 py-1 text-xs text-white">
+      className="rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-800">
       {options.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
     </select>
   )
@@ -43,14 +43,14 @@ function Num({ value, onChange, min, max, step }) {
   return (
     <input type="number" value={value ?? ''} min={min} max={max} step={step}
       onChange={onChange}
-      className="w-full rounded border border-gray-600 bg-gray-800 px-2 py-1 text-xs text-white" />
+      className="w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-800" />
   )
 }
 
 function Toggle({ checked, onChange, label }) {
   return (
-    <label className="flex items-center gap-1.5 text-[10px] text-gray-400">
-      <input type="checkbox" checked={checked} onChange={onChange} className="accent-emerald-500" />
+    <label className="flex items-center gap-1.5 text-[10px] text-gray-500">
+      <input type="checkbox" checked={checked} onChange={onChange} className="accent-emerald-600" />
       {label}
     </label>
   )
@@ -71,14 +71,14 @@ export default function SegmentEditor({ segment, onUpdate, onRemove }) {
   const cm = segment.community || {}
 
   return (
-    <div className="rounded border border-gray-700 bg-gray-800/50 p-2.5">
+    <div className="rounded border border-gray-200 bg-gray-50 p-2.5">
       <div className="flex items-center gap-2">
-        <button onClick={() => setOpen(!open)} className="text-xs text-gray-500">{open ? '▾' : '▸'}</button>
+        <button onClick={() => setOpen(!open)} className="text-xs text-gray-400">{open ? '▾' : '▸'}</button>
         <input value={segment.label || ''} onChange={(e) => set('label', e.target.value)}
-          className="flex-1 bg-transparent text-xs font-medium text-white focus:outline-none"
+          className="flex-1 bg-transparent text-xs font-medium text-gray-800 focus:outline-none"
           placeholder="Segment label" />
-        <span className="text-[10px] text-gray-500">{(segment.lengthFt || 0).toLocaleString()} ft</span>
-        <button onClick={onRemove} className="text-xs text-gray-500 hover:text-red-400">x</button>
+        <span className="text-[10px] text-gray-400">{(segment.lengthFt || 0).toLocaleString()} ft</span>
+        <button onClick={onRemove} className="text-xs text-gray-400 hover:text-red-500">x</button>
       </div>
 
       {open && (
@@ -90,7 +90,7 @@ export default function SegmentEditor({ segment, onUpdate, onRemove }) {
             <Field label="Context"><Select value={segment.context} onChange={(e) => set('context', e.target.value)} options={CONTEXTS} /></Field>
           </div>
 
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-500">Planning Factors</p>
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-600">Planning Factors</p>
           <div className="grid grid-cols-2 gap-2">
             <Field label="Traffic AADT"><Num value={f.trafficAadt} onChange={(e) => set('factors.trafficAadt', +e.target.value)} step={1000} /></Field>
             <Field label="Intersections/mi"><Num value={f.intersectionDensityPerMi} onChange={(e) => set('factors.intersectionDensityPerMi', +e.target.value)} /></Field>
@@ -107,7 +107,7 @@ export default function SegmentEditor({ segment, onUpdate, onRemove }) {
             <Toggle checked={f.nightWorkOnly} onChange={(e) => set('factors.nightWorkOnly', e.target.checked)} label="Night work" />
           </div>
 
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-500">Community Factors</p>
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-600">Community Factors</p>
           <div className="grid grid-cols-2 gap-2">
             <Field label="Population (1-10)"><Num value={cm.populationCatchment} onChange={(e) => set('community.populationCatchment', +e.target.value)} min={1} max={10} /></Field>
             <Field label="Jobs (1-10)"><Num value={cm.jobCatchment} onChange={(e) => set('community.jobCatchment', +e.target.value)} min={1} max={10} /></Field>

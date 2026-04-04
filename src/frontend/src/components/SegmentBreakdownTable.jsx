@@ -19,21 +19,21 @@ export default function SegmentBreakdownTable({ corridorResults }) {
   if (!corridorResults?.length) return null
 
   return (
-    <div className="rounded-xl border border-gray-700 bg-gray-800 p-5">
-      <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-400">Segment Breakdown</h3>
+    <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+      <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-500">Segment Breakdown</h3>
       {corridorResults.map((c) => (
         <div key={c.id} className="mt-3">
           <button onClick={() => setExpandedId(expandedId === c.id ? null : c.id)}
-            className="flex w-full items-center gap-2 text-left text-xs font-medium text-white">
-            <span>{expandedId === c.id ? '▾' : '▸'}</span>
+            className="flex w-full items-center gap-2 text-left text-xs font-medium text-gray-800">
+            <span className="text-gray-400">{expandedId === c.id ? '▾' : '▸'}</span>
             {c.name}
-            <span className="text-gray-500">({c.segmentResults.length} segments)</span>
+            <span className="text-gray-400">({c.segmentResults.length} segments)</span>
           </button>
 
           {expandedId === c.id && (
             <table className="mt-2 w-full text-[11px]">
               <thead>
-                <tr className="border-b border-gray-700 text-gray-500">
+                <tr className="border-b border-gray-200 text-gray-400">
                   <th className="py-1 text-left">Segment</th>
                   <th className="py-1 text-right">Type</th>
                   <th className="py-1 text-right">Section</th>
@@ -44,13 +44,13 @@ export default function SegmentBreakdownTable({ corridorResults }) {
               </thead>
               <tbody>
                 {c.segmentResults.map((s) => (
-                  <tr key={s.id} className="border-b border-gray-700/30">
-                    <td className="py-1.5 text-gray-300">{s.label}</td>
-                    <td className="py-1.5 text-right text-gray-400">{TYPE_LABELS[s.segmentType] || s.segmentType}</td>
-                    <td className="py-1.5 text-right text-gray-400">{SECTION_LABELS[s.sectionFamily] || s.sectionFamily}</td>
-                    <td className="py-1.5 text-right text-gray-300">{s.lengthFt.toLocaleString()}'</td>
-                    <td className="py-1.5 text-right text-gray-300">{Math.round(s.metrics.carbonKgCo2e / 1000)}t</td>
-                    <td className="py-1.5 text-right text-gray-300">${(s.metrics.costUsd / 1e6).toFixed(2)}M</td>
+                  <tr key={s.id} className="border-b border-gray-50">
+                    <td className="py-1.5 text-gray-700">{s.label}</td>
+                    <td className="py-1.5 text-right text-gray-500">{TYPE_LABELS[s.segmentType] || s.segmentType}</td>
+                    <td className="py-1.5 text-right text-gray-500">{SECTION_LABELS[s.sectionFamily] || s.sectionFamily}</td>
+                    <td className="py-1.5 text-right text-gray-700">{s.lengthFt.toLocaleString()}'</td>
+                    <td className="py-1.5 text-right text-gray-700">{Math.round(s.metrics.carbonKgCo2e / 1000)}t</td>
+                    <td className="py-1.5 text-right text-gray-700">${(s.metrics.costUsd / 1e6).toFixed(2)}M</td>
                   </tr>
                 ))}
               </tbody>

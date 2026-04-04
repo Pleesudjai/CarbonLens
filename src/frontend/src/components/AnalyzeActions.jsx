@@ -4,7 +4,7 @@ export default function AnalyzeActions({ onAnalyze, onReset, loading, hasResults
       <button
         onClick={onAnalyze}
         disabled={loading}
-        className="flex-1 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
+        className="flex-1 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
       >
         {loading ? (
           <span className="flex items-center justify-center gap-2">
@@ -18,7 +18,7 @@ export default function AnalyzeActions({ onAnalyze, onReset, loading, hasResults
       {hasResults && (
         <button
           onClick={onReset}
-          className="rounded-lg border border-gray-600 px-3 py-2.5 text-sm text-gray-400 hover:border-gray-500 hover:text-white"
+          className="rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-gray-500 hover:border-gray-400 hover:text-gray-700"
         >
           Reset
         </button>

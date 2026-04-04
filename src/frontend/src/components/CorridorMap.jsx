@@ -3,7 +3,7 @@ import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { CITY_PRESETS, addCorridorLayer, addSegmentHighlight } from './mapUtils'
 
-const MAP_STYLE = 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json'
+const MAP_STYLE = 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json'
 
 export default function CorridorMap({ city = 'phoenix', corridors = [], selectedSegment = null, onMapReady }) {
   const containerRef = useRef(null)
