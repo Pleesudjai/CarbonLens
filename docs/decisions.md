@@ -23,3 +23,9 @@
 **Why this approach:** The spec calls for thin utility boundaries so later specs (analysis engine, map builder, dashboard) consume stable helpers instead of scattering library calls. Phoenix/Denver/Portland presets and 20 Valley Metro Rail fallback stops ship without any external feed dependency.
 **Files changed:** src/frontend/src/components/CorridorMap.jsx, mapUtils.js, drawUtils.js (new), src/backend/analysis/geospatialUtils.js, gtfsContext.js (new), src/frontend/src/App.jsx (updated), src/frontend/package.json, netlify/functions/package.json
 **Next:** Execute transit-analysis-engine.md — deterministic scoring module that everything else depends on.
+
+## 2026-04-04 — Transit analysis engine (deterministic scoring)
+**What was built:** Pure JavaScript analysis engine with 3 section family presets (conventional RC, fiber-reduced, low-cement SCM), 5 segment types, context multipliers, and 7 output metrics (carbon, cost, duration, disruption, maintenance, buildability, community benefit). Phoenix scenario seed with 3 corridor alternatives (7 segments) produces differentiated rankings — Alt C best composite, Alt B lowest carbon + highest community, no single corridor wins everything.
+**Why this approach:** Engine is fully deterministic with no API dependencies. All constants are editable in transitConstants.js. Formulas follow the spec exactly (volume, carbon, cost, duration, disruption, buildability, community, maintenance, composite). Output shape matches the API contract spec for direct frontend consumption.
+**Files changed:** src/backend/analysis/transitConstants.js (new), transitScenarioPresets.js (new), transitCarbonEngine.js (new)
+**Next:** Execute transit-analysis-api.md — wire the engine to a Netlify function so the frontend can call it.
