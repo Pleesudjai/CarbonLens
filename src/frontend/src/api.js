@@ -1,5 +1,10 @@
 const API_BASE = '/api'
 
+/**
+ * Send a scenario payload to the analysis API and return ranked results.
+ * @param {object} payload - scenario with cityId, corridors, etc.
+ * @returns {Promise<object>} analysis result
+ */
 export async function analyzeScenario(payload) {
   const res = await fetch(`${API_BASE}/analyze`, {
     method: 'POST',
@@ -8,11 +13,18 @@ export async function analyzeScenario(payload) {
   })
 
   if (!res.ok) {
-    throw new Error(`API error: ${res.status}`)
+    const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }))
+    throw new Error(err.error || `API error: ${res.status}`)
   }
 
   return res.json()
 }
 
-// Backward-compatible alias while the frontend is being repointed.
-export const analyzeRegion = analyzeScenario
+/**
+ * Load the default Phoenix preset analysis (sends empty body).
+ * The API falls back to the built-in Phoenix scenario.
+ * @returns {Promise<object>} analysis result
+ */
+export async function analyzePreset() {
+  return analyzeScenario({})
+}

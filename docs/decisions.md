@@ -29,3 +29,9 @@
 **Why this approach:** Engine is fully deterministic with no API dependencies. All constants are editable in transitConstants.js. Formulas follow the spec exactly (volume, carbon, cost, duration, disruption, buildability, community, maintenance, composite). Output shape matches the API contract spec for direct frontend consumption.
 **Files changed:** src/backend/analysis/transitConstants.js (new), transitScenarioPresets.js (new), transitCarbonEngine.js (new)
 **Next:** Execute transit-analysis-api.md — wire the engine to a Netlify function so the frontend can call it.
+
+## 2026-04-04 — Transit analysis API (Netlify function)
+**What was built:** POST `/api/analyze` Netlify function that validates scenario payloads, normalizes `corridorAlternatives`/`corridors` key, runs the deterministic engine, and returns ranked results. Falls back to Phoenix preset on empty body. Returns 405 for non-POST, 400 for bad JSON, 500 for unexpected errors. Frontend api.js updated with `analyzePreset()` helper.
+**Why this approach:** Thin function layer keeps the contract simple — receive JSON, validate, call engine, return results. Accepts both `corridorAlternatives` and `corridors` so frontend and API spec stay flexible. Empty-body fallback makes demo instant without frontend form wiring.
+**Files changed:** netlify/functions/analyze.js (new), src/frontend/src/api.js (updated)
+**Next:** Execute transit-map-scenario-builder.md — MapLibre corridor drawing + city presets.
