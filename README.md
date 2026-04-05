@@ -12,25 +12,25 @@ Built for **Innovation Hacks 2.0** — Amazon Sustainability Track (April 2026).
 
 ## Figures
 
-### Fig 1. Section Tradeoffs — RC vs FRC
-![Section Tradeoffs](pics/01.png)
-Side-by-side cross-section comparison of Conventional RC (14 in slab, 240 lb/cy rebar) and FRC (12 in slab, 60 lb/cy fiber), with candidate tradeoff graph showing thickness, steel, material carbon, during-build carbon, and total carbon savings per route.
-
-### Fig 2. Map Workspace — Existing Transit Network
-![Map Workspace](pics/02.png)
+### Fig 1. Map Workspace — Existing Transit Network
+![Map Workspace](pics/01.png)
 CarbonLens map workspace showing the Valley Metro network (A Line, B Line, Streetcar, Sky Train) with Mode-Shift Opportunity and Delay Emissions Hotspots overlays from live ADOT, Census, LEHD, TIGER, and GTFS data.
 
-### Fig 3. Corridor Comparison — Two User-Drawn Alternatives
-![Corridor Comparison](pics/03.png)
+### Fig 2. Corridor Comparison — Two User-Drawn Alternatives
+![Corridor Comparison](pics/02.png)
 Two user-drawn corridor alternatives (B Route and Alt B) with live planning factors auto-populated from public data, Road CO2 Pressure and Delay Emissions Hotspots overlays, and the Planner-view recommendation with FEMA and TIGER enrichment.
 
-### Fig 4. Report View — Claude AI Advisor
-![Report View](pics/04.png)
+### Fig 3. Report View — Claude AI Advisor
+![Report View](pics/03.png)
 Report view with Claude AI advisor providing engineering-level narrative — construction insight on during-build carbon differences, watchouts for flood risk and staged construction assumptions, and actionable next steps.
 
-### Fig 5. Structure Carbon Comparison
-![Structure Carbon](pics/05.png)
+### Fig 4. Structure Carbon Comparison
+![Structure Carbon](pics/04.png)
 Per-mile carbon breakdown (material vs. during-build) for each corridor segment, with FEMA flood zone and TIGERweb road-network context enrichment displayed per segment.
+
+### Fig 5. Section Tradeoffs — RC vs FRC
+![Section Tradeoffs](pics/05.png)
+Side-by-side cross-section comparison of Conventional RC (14 in slab, 240 lb/cy rebar) and FRC (12 in slab, 60 lb/cy fiber), with candidate tradeoff graph showing thickness, steel, material carbon, during-build carbon, and total carbon savings per route.
 
 ### Fig 6. Why Construction Carbon Matters
 ![Construction Carbon Poster](pics/carbonlens-construction-carbon-poster.png)
