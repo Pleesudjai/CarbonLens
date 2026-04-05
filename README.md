@@ -34,10 +34,51 @@ Built for **Innovation Hacks 2.0** — Amazon Sustainability Track (April 2026).
 
 $$C_{\text{total}} = C_{\text{material}} + C_{\text{construction}}$$
 
-- **Material carbon** — concrete, rebar, and fiber volumes per segment
-- **During-build carbon** — traffic delay, detours, and equipment emissions during construction
+### Material Carbon
 
-Two routes can have similar material carbon but very different total carbon because during-build carbon follows traffic exposure and construction duration, not just structure.
+$$C_{\text{material}} = \sum_{i} \left( V_i \times \rho_i \times EF_i \right)$$
+
+Each segment computes concrete volume from slab thickness and width, then adds reinforcement carbon:
+
+| Section Family | Slab | Rebar | Fiber | Concrete Mix | Production |
+|---|---|---|---|---|---|
+| Conventional RC | 14 in | 240 lb/cy | — | Standard (15% SCM) | 35 lf/day |
+| Fiber Reinforced (FRC) | 12 in | — | 60 lb/cy | Fiber Mix (15% SCM) | 55 lf/day |
+| Low-Cement SCM-Rich | 14 in | 240 lb/cy | — | Low-Carbon (35% SCM) | 32 lf/day |
+
+Material emission factors (ICE v3):
+- Rebar: 0.90 kg CO₂e/lb
+- Steel fiber: 1.03 kg CO₂e/lb
+- Standard concrete: 290 kg CO₂e/cy
+- Low-carbon concrete: 210 kg CO₂e/cy
+
+### During-Build Carbon
+
+$$C_{\text{construction}} = C_{\text{idle}} + C_{\text{detour}} + C_{\text{equipment}}$$
+
+where:
+
+$$C_{\text{idle}} = AADT \times \alpha \times d \times \delta_{\text{delay}} \times ef_{\text{idle}}$$
+
+$$C_{\text{detour}} = AADT \times \beta \times d \times \Delta L \times ef_{\text{detour}}$$
+
+$$C_{\text{equipment}} = P_{\text{equip}} \times d$$
+
+| Parameter | Value | Source |
+|---|---|---|
+| $ef_{\text{idle}}$ | 8.16 kg CO₂/vehicle-hour | EPA avg passenger vehicle |
+| $ef_{\text{detour}}$ | 0.404 kg CO₂/mile | EPA avg passenger vehicle |
+| $\delta_{\text{delay}}$ | 0.05 hours (3 min) | FHWA work-zone delay |
+| $\Delta L$ | 1.5 miles | FHWA urban arterial detour |
+| $P_{\text{equip}}$ | 2,500 kg CO₂/day | Industry avg LRT equipment |
+| $\alpha$ (affected share) | 10–50% of AADT | Context-adjusted |
+| $\beta$ (detour share) | 4–22% of AADT | Context-adjusted |
+
+The affected traffic share $\alpha$ adjusts for corridor context (urban core +15%, suburban −8%), segment type (embedded street +12%, elevated −15%), constrained ROW (+8%), and night work (−5%). A staged construction factor (0.65–1.05) further scales daily exposure.
+
+### Why This Matters
+
+Two routes can have similar material carbon but very different total carbon because during-build carbon follows traffic exposure and construction duration, not just structure. FRC saves carbon in two ways: thinner slabs reduce material volume, and faster production (55 vs. 35 lf/day) shortens the construction window — reducing traffic-delay emissions by up to 84% of the total benefit.
 
 ## Live Public Data Sources
 
