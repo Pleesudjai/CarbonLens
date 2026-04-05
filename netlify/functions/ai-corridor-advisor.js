@@ -6,7 +6,7 @@ const CORS_HEADERS = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
-const DEFAULT_MODEL = process.env.ANTHROPIC_MODEL || 'claude-3-haiku-20240307'
+const DEFAULT_MODEL = process.env.ANTHROPIC_MODEL || 'claude-haiku-4-5-20251001'
 
 function jsonResponse(statusCode, body) {
   return {
