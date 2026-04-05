@@ -4,13 +4,13 @@ Layer: backend-module
 
 ## What We're Building
 
-A deterministic JavaScript analysis module that accepts corridor alternatives plus segment section inputs and returns comparable embodied-carbon, cost, duration, disruption, maintenance, buildability, and community-benefit metrics.
+A deterministic JavaScript analysis module that accepts corridor alternatives plus segment section inputs and derived context snapshots from public datasets, then returns comparable embodied-carbon, cost, duration, disruption, maintenance, buildability, and community-benefit metrics.
 
 This engine is the core of the MVP. It must work without external APIs.
 
 ## Inputs / Outputs
 
-- Input: scenario payload with city, corridor alternatives, segments, section families, context factors, and community factors
+- Input: scenario payload with city, corridor alternatives, segments, section families, and derived context/community factors populated from public-data connectors or dataset snapshots
 - Output: normalized analysis result with corridor totals, segment breakdowns, ranking, and recommendation metadata
 
 ## Files to Create or Edit

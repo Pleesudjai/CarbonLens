@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import Header from './components/Header'
 import CorridorMap from './components/CorridorMap'
 import CorridorPanel from './components/CorridorPanel'
@@ -13,8 +13,9 @@ import CorridorComparisonChart from './components/CorridorComparisonChart'
 import SegmentBreakdownTable from './components/SegmentBreakdownTable'
 import SectionTradeoffCard from './components/SectionTradeoffCard'
 import CommunityImpactNote from './components/CommunityImpactNote'
-import { createDefaultScenario, corridorGeojson } from './components/defaultScenario'
-import { analyzeScenario } from './api'
+import { getBackgroundOverlayFallback, mergeBackgroundOverlayData } from './components/backgroundOverlayData'
+import { createDefaultScenario, corridorGeojson, hasPresetGeometry } from './components/defaultScenario'
+import { analyzeScenario, getBackgroundOverlays } from './api'
 
 let nextId = 100
 
@@ -26,6 +27,10 @@ function App() {
   const [error, setError] = useState(null)
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [lens, setLens] = useState('planner')
+  const [backgroundLayer, setBackgroundLayer] = useState('population')
+  const [backgroundData, setBackgroundData] = useState(() => getBackgroundOverlayFallback('phoenix'))
+  const [backgroundLoading, setBackgroundLoading] = useState(false)
+  const [backgroundError, setBackgroundError] = useState(null)
   const [drawMode, setDrawMode] = useState(false)
   const [customLines, setCustomLines] = useState({})
 
@@ -35,6 +40,32 @@ function App() {
     setActiveCorridorId('alt-a')
     setResults(null)
   }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    const fallback = getBackgroundOverlayFallback(city)
+    setBackgroundData(fallback)
+    setBackgroundLoading(true)
+    setBackgroundError(null)
+
+    getBackgroundOverlays(city)
+      .then((data) => {
+        if (!cancelled) setBackgroundData(mergeBackgroundOverlayData(data, fallback))
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setBackgroundError(err.message)
+          setBackgroundData(fallback)
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setBackgroundLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [city])
 
   const updateScenario = (fn) => setScenario((prev) => ({ ...prev, corridors: fn(prev.corridors) }))
   const handleSelectCorridor = (id) => setActiveCorridorId(id)
@@ -93,13 +124,25 @@ function App() {
       <div className="flex flex-1 overflow-hidden">
         <div className="flex flex-1 flex-col overflow-y-auto">
           <div className="relative" style={{ minHeight: results ? 320 : 500 }}>
-            <CorridorMap city={city} corridors={mapCorridors} drawMode={drawMode} onDrawComplete={handleDrawComplete} />
-            <button onClick={() => setDrawMode((d) => !d)}
-              className={`absolute top-4 left-4 z-10 rounded-lg px-3 py-2 text-xs font-medium shadow-md transition-colors ${
-                drawMode ? 'bg-emerald-600 text-white' : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
-              }`}>
-              {drawMode ? `Drawing ${activeCorridor?.name || ''}... (dbl-click to finish)` : `Draw ${activeCorridor?.name || 'Corridor'}`}
-            </button>
+            <CorridorMap
+              city={city}
+              corridors={mapCorridors}
+              drawMode={drawMode}
+              backgroundLayer={backgroundLayer}
+              backgroundData={backgroundData}
+              backgroundLoading={backgroundLoading}
+              backgroundError={backgroundError}
+              onBackgroundLayerChange={setBackgroundLayer}
+              onDrawComplete={handleDrawComplete}
+            />
+            {!hasPresetGeometry(activeCorridorId, city) && (
+              <button onClick={() => setDrawMode((d) => !d)}
+                className={`absolute top-4 left-4 z-10 rounded-lg px-3 py-2 text-xs font-medium shadow-md transition-colors ${
+                  drawMode ? 'bg-emerald-600 text-white' : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
+                }`}>
+                {drawMode ? `Drawing ${activeCorridor?.name || ''}... (dbl-click to finish)` : `Draw ${activeCorridor?.name || 'Corridor'}`}
+              </button>
+            )}
             {cr && <MapStatsOverlay corridorResults={cr} activeCorridorId={activeCorridorId} />}
           </div>
           {results && (

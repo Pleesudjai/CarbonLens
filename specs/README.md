@@ -23,7 +23,7 @@ Core positioning:
 - The product is a `conceptual planning assistant`, not a stamped engineering design tool.
 - The first demo should focus on `Phoenix` and at-grade transit sections because that is the strongest domain knowledge available.
 - The deterministic analysis engine must work without Claude API help. AI narration is optional after the core math is working.
-- Real public-transport planning factors should be modeled as transparent heuristics, not hidden assumptions.
+- Real public-transport planning factors should be sourced from public or agency datasets and modeled as transparent heuristics, not hidden assumptions.
 - The first factor set should include traffic intensity, intersection density, utility conflict risk, right-of-way width, station catchment population, job density, transit dependency, transfer connectivity, and heat exposure.
 
 ## Recommended Read Order

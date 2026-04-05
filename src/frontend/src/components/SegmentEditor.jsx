@@ -21,6 +21,10 @@ const CONTEXTS = [
   ['industrial', 'Industrial'],
 ]
 
+const SEGMENT_TYPE_LABELS = Object.fromEntries(SEGMENT_TYPES)
+const CONTEXT_LABELS = Object.fromEntries(CONTEXTS)
+const FLOOD_LABELS = { low: 'Low', moderate: 'Moderate', high: 'High' }
+
 function Field({ label, children }) {
   return (
     <label className="flex flex-col gap-0.5">
@@ -32,32 +36,56 @@ function Field({ label, children }) {
 
 function Select({ value, onChange, options }) {
   return (
-    <select value={value} onChange={onChange}
-      className="rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-800">
-      {options.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+    <select
+      value={value}
+      onChange={onChange}
+      className="rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-800"
+    >
+      {options.map(([v, l]) => (
+        <option key={v} value={v}>
+          {l}
+        </option>
+      ))}
     </select>
   )
 }
 
-function Num({ value, onChange, min, max, step }) {
+function StaticField({ label, value, source }) {
   return (
-    <input type="number" value={value ?? ''} min={min} max={max} step={step}
-      onChange={onChange}
-      className="w-full rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-800" />
+    <div className="flex flex-col gap-0.5">
+      <span className="text-[10px] uppercase tracking-wider text-gray-400">{label}</span>
+      <div className="rounded border border-gray-200 bg-gray-100 px-2 py-1.5 text-xs text-gray-800">{value}</div>
+      {source && <span className="text-[10px] text-gray-400">{source}</span>}
+    </div>
   )
 }
 
-function Toggle({ checked, onChange, label }) {
+function SourceChip({ children }) {
   return (
-    <label className="flex items-center gap-1.5 text-[10px] text-gray-500">
-      <input type="checkbox" checked={checked} onChange={onChange} className="accent-emerald-600" />
-      {label}
-    </label>
+    <span className="rounded-full border border-gray-200 bg-white px-2 py-0.5 text-[10px] text-gray-500">
+      {children}
+    </span>
+  )
+}
+
+function Flag({ active, label, source }) {
+  return (
+    <div className="flex flex-col gap-0.5">
+      <div
+        className={`rounded border px-2 py-1 text-[11px] ${
+          active ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-gray-200 bg-gray-100 text-gray-500'
+        }`}
+      >
+        {label}: {active ? 'Detected' : 'Clear'}
+      </div>
+      <span className="text-[10px] text-gray-400">{source}</span>
+    </div>
   )
 }
 
 export default function SegmentEditor({ segment, onUpdate, onRemove }) {
   const [open, setOpen] = useState(false)
+
   const set = (path, val) => {
     const s = structuredClone(segment)
     const parts = path.split('.')
@@ -73,51 +101,110 @@ export default function SegmentEditor({ segment, onUpdate, onRemove }) {
   return (
     <div className="rounded border border-gray-200 bg-gray-50 p-2.5">
       <div className="flex items-center gap-2">
-        <button onClick={() => setOpen(!open)} className="text-xs text-gray-400">{open ? '▾' : '▸'}</button>
-        <input value={segment.label || ''} onChange={(e) => set('label', e.target.value)}
+        <button onClick={() => setOpen(!open)} className="text-xs text-gray-400">
+          {open ? 'v' : '>'}
+        </button>
+        <input
+          value={segment.label || ''}
+          onChange={(e) => set('label', e.target.value)}
           className="flex-1 bg-transparent text-xs font-medium text-gray-800 focus:outline-none"
-          placeholder="Segment label" />
+          placeholder="Segment label"
+        />
         <span className="text-[10px] text-gray-400">{(segment.lengthFt || 0).toLocaleString()} ft</span>
-        <button onClick={onRemove} className="text-xs text-gray-400 hover:text-red-500">x</button>
+        <button onClick={onRemove} className="text-xs text-gray-400 hover:text-red-500">
+          x
+        </button>
       </div>
 
       {open && (
         <div className="mt-2 space-y-3">
           <div className="grid grid-cols-2 gap-2">
-            <Field label="Type"><Select value={segment.segmentType} onChange={(e) => set('segmentType', e.target.value)} options={SEGMENT_TYPES} /></Field>
-            <Field label="Section"><Select value={segment.sectionFamily} onChange={(e) => set('sectionFamily', e.target.value)} options={SECTION_FAMILIES} /></Field>
-            <Field label="Length (ft)"><Num value={segment.lengthFt} onChange={(e) => set('lengthFt', +e.target.value)} min={100} step={100} /></Field>
-            <Field label="Context"><Select value={segment.context} onChange={(e) => set('context', e.target.value)} options={CONTEXTS} /></Field>
+            <StaticField
+              label="Type"
+              value={SEGMENT_TYPE_LABELS[segment.segmentType] || segment.segmentType}
+              source="Auto-classified from alignment + roadway context"
+            />
+            <Field label="Section">
+              <Select value={segment.sectionFamily} onChange={(e) => set('sectionFamily', e.target.value)} options={SECTION_FAMILIES} />
+            </Field>
+            <StaticField
+              label="Length (ft)"
+              value={(segment.lengthFt || 0).toLocaleString()}
+              source="Derived from map geometry"
+            />
+            <StaticField
+              label="Context"
+              value={CONTEXT_LABELS[segment.context] || segment.context}
+              source="AZDOT / local roadway classification"
+            />
           </div>
 
           <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-600">Planning Factors</p>
+          <p className="text-[11px] text-gray-500">These are public-data inputs, not manual design choices.</p>
           <div className="grid grid-cols-2 gap-2">
-            <Field label="Traffic AADT"><Num value={f.trafficAadt} onChange={(e) => set('factors.trafficAadt', +e.target.value)} step={1000} /></Field>
-            <Field label="Intersections/mi"><Num value={f.intersectionDensityPerMi} onChange={(e) => set('factors.intersectionDensityPerMi', +e.target.value)} /></Field>
-            <Field label="Flood Risk">
-              <Select value={f.floodRisk || 'low'} onChange={(e) => set('factors.floodRisk', e.target.value)}
-                options={[['low', 'Low'], ['moderate', 'Moderate'], ['high', 'High']]} />
-            </Field>
+            <StaticField
+              label="Traffic AADT"
+              value={(f.trafficAadt ?? 0).toLocaleString()}
+              source="ADOT traffic counts"
+            />
+            <StaticField
+              label="Intersections/mi"
+              value={f.intersectionDensityPerMi ?? 0}
+              source="Road centerlines / intersections"
+            />
+            <StaticField
+              label="Flood Risk"
+              value={FLOOD_LABELS[f.floodRisk || 'low']}
+              source="FEMA NFHL"
+            />
           </div>
-          <div className="flex flex-wrap gap-3">
-            <Toggle checked={f.utilityDensityHigh} onChange={(e) => set('factors.utilityDensityHigh', e.target.checked)} label="Utility conflict" />
-            <Toggle checked={f.trafficSensitivityHigh} onChange={(e) => set('factors.trafficSensitivityHigh', e.target.checked)} label="Traffic sensitive" />
-            <Toggle checked={f.constrainedRow} onChange={(e) => set('factors.constrainedRow', e.target.checked)} label="Constrained ROW" />
-            <Toggle checked={f.urbanCore} onChange={(e) => set('factors.urbanCore', e.target.checked)} label="Urban core" />
-            <Toggle checked={f.nightWorkOnly} onChange={(e) => set('factors.nightWorkOnly', e.target.checked)} label="Night work" />
+          <div className="grid grid-cols-2 gap-2">
+            <Flag active={!!f.utilityDensityHigh} label="Utility conflict" source="Utility GIS overlay" />
+            <Flag active={!!f.trafficSensitivityHigh} label="Traffic sensitive" source="Traffic / activity overlay" />
+            <Flag active={!!f.constrainedRow} label="Constrained ROW" source="ROW width + parcel context" />
+            <Flag active={!!f.urbanCore} label="Urban core" source="Land-use / urban form layer" />
+            <Flag active={!!f.nightWorkOnly} label="Night work" source="Operational constraint rules" />
           </div>
 
           <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-600">Community Factors</p>
+          <p className="text-[11px] text-gray-500">
+            Community and equity metrics should come from public demographic and transit datasets.
+          </p>
           <div className="grid grid-cols-2 gap-2">
-            <Field label="Population (1-10)"><Num value={cm.populationCatchment} onChange={(e) => set('community.populationCatchment', +e.target.value)} min={1} max={10} /></Field>
-            <Field label="Jobs (1-10)"><Num value={cm.jobCatchment} onChange={(e) => set('community.jobCatchment', +e.target.value)} min={1} max={10} /></Field>
-            <Field label="Zero-car HH %"><Num value={cm.zeroCarHouseholdsPct} onChange={(e) => set('community.zeroCarHouseholdsPct', +e.target.value)} min={1} max={10} /></Field>
-            <Field label="Transfer conn. (1-10)"><Num value={cm.transferConnectivity} onChange={(e) => set('community.transferConnectivity', +e.target.value)} min={1} max={10} /></Field>
-            <Field label="Activity nodes (1-10)"><Num value={cm.activityNodeImportance} onChange={(e) => set('community.activityNodeImportance', +e.target.value)} min={1} max={10} /></Field>
+            <StaticField
+              label="Population (1-10)"
+              value={cm.populationCatchment ?? 0}
+              source="Census ACS catchment score"
+            />
+            <StaticField label="Jobs (1-10)" value={cm.jobCatchment ?? 0} source="LEHD / LODES jobs score" />
+            <StaticField
+              label="Zero-car HH %"
+              value={cm.zeroCarHouseholdsPct ?? 0}
+              source="Census ACS households"
+            />
+            <StaticField
+              label="Transfer conn. (1-10)"
+              value={cm.transferConnectivity ?? 0}
+              source="GTFS stop + route graph"
+            />
+            <StaticField
+              label="Activity nodes (1-10)"
+              value={cm.activityNodeImportance ?? 0}
+              source="Station-area destinations"
+            />
           </div>
-          <div className="flex flex-wrap gap-3">
-            <Toggle checked={cm.heatExposureHigh} onChange={(e) => set('community.heatExposureHigh', e.target.checked)} label="High heat" />
-            <Toggle checked={cm.stationTransferStrong} onChange={(e) => set('community.stationTransferStrong', e.target.checked)} label="Strong transfer" />
+          <div className="grid grid-cols-2 gap-2">
+            <Flag active={!!cm.heatExposureHigh} label="High heat" source="NOAA heat / climate layer" />
+            <Flag active={!!cm.stationTransferStrong} label="Strong transfer" source="GTFS network connectivity" />
+          </div>
+
+          <div className="flex flex-wrap gap-2 pt-1">
+            <SourceChip>ADOT traffic</SourceChip>
+            <SourceChip>FEMA flood</SourceChip>
+            <SourceChip>Census ACS</SourceChip>
+            <SourceChip>LEHD LODES</SourceChip>
+            <SourceChip>GTFS</SourceChip>
+            <SourceChip>NOAA heat</SourceChip>
           </div>
         </div>
       )}

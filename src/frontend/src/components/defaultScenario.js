@@ -30,6 +30,10 @@ const PHOENIX_LINES = {
   'alt-c': [[-112.099, 33.530], [-112.074, 33.530], [-112.050, 33.530], [-112.030, 33.530]],
 }
 
+export function hasPresetGeometry(corridorId, cityId) {
+  return cityId === 'phoenix' && corridorId in PHOENIX_LINES
+}
+
 export function corridorGeojson(corridorId, cityId) {
   const coords = (cityId === 'phoenix' && PHOENIX_LINES[corridorId]) || []
   if (coords.length < 2) return { type: 'FeatureCollection', features: [] }

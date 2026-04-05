@@ -4,7 +4,7 @@ Layer: frontend
 
 ## What We're Building
 
-A map-first scenario builder that lets the team choose a city preset, review a conceptual rail corridor on the map, define up to 3 corridor alternatives, edit segment properties, attach real planning factors, and send the scenario to the analysis API.
+A map-first scenario builder that lets the team choose a city preset, review a conceptual rail corridor on the map, define up to 3 corridor alternatives, edit segment properties, review real planning factors derived from public datasets, and send the scenario to the analysis API.
 
 Important implementation note:
 
@@ -20,7 +20,7 @@ Chosen library direction for this spec:
 
 ## Inputs / Outputs
 
-- Input: city preset selection, corridor alternative form state, segment form state
+- Input: city preset selection, corridor alternative form state, segment form state, and derived public-data snapshots for each segment
 - Output: normalized scenario payload sent to `src/frontend/src/api.js`
 
 ## Files to Create or Edit
@@ -79,42 +79,53 @@ Support:
 Each segment should allow:
 
 - label
-- segment type
-- length in feet
 - section family
+- display-only segment type
+- display-only length in feet
+- display-only corridor context classification
 - slab width
 - slab thickness
 - SCM percent
 - rebar quantity
 - steel fiber quantity
-- traffic AADT
-- lane count
-- intersection density
-- utility density
-- right-of-way width
-- traffic sensitivity
-- urban core flag
-- night work flag
-- flood risk
-- population catchment
-- job catchment
-- zero-car households percentage
-- transfer connectivity score
-- heat exposure score
-- activity-node importance
+- display-only traffic AADT
+- display-only lane count
+- display-only intersection density
+- display-only utility density
+- display-only right-of-way width
+- display-only traffic sensitivity
+- display-only urban core flag
+- display-only night work flag
+- display-only flood risk
+- display-only population catchment
+- display-only job catchment
+- display-only zero-car households percentage
+- display-only transfer connectivity score
+- display-only heat exposure score
+- display-only activity-node importance
 
-### Real Planning Factor Input
+### Public Data Derivation
 
-For MVP, these factors should be entered manually or loaded from city presets.
+Planning and community factors should not be manual user inputs.
 
-Do not block the build on live APIs for:
+The UI should present them as read-only, source-labeled fields derived from public or agency datasets such as:
 
-- traffic
-- census
-- GTFS
-- utility mapping
+- ADOT traffic counts for `trafficAadt`
+- roadway centerlines and intersection geometry for `intersectionDensityPerMile`
+- FEMA NFHL for `floodRisk`
+- Census ACS for population, zero-car households, and equity context
+- LEHD / LODES for job density
+- GTFS for transfer connectivity
+- NOAA or local climate layers for heat exposure
+- local roadway classification / parcel context for urban-core and right-of-way constraints
 
-The product should still feel realistic because the fields are explicit and editable.
+For MVP, do not block the build on live API calls. It is acceptable to use:
+
+- preloaded city snapshots
+- cached API responses
+- backend-side dataset joins
+
+But the sidebar should make it clear that these values come from public data rather than user judgment.
 
 ### Map Behavior
 
@@ -155,12 +166,13 @@ Avoid product copy that implies one person alone changes transit.
 4. [ ] Build `CitySelector.jsx`
 5. [ ] Build `CorridorPanel.jsx`
 6. [ ] Build `SegmentEditor.jsx`
-7. [ ] Ensure segment editing includes engineering fields plus planning-context fields
-8. [ ] Create lightweight `mapUtils.js` and `drawUtils.js` helpers
-9. [ ] Build `CorridorMap.jsx` with MapLibre and Terra Draw integration points
-10. [ ] Add `AnalyzeActions.jsx` with loading and disabled states
-11. [ ] Wire the scenario payload to `api.js`
-12. [ ] Keep all components under 150 lines by splitting concerns early
+7. [ ] Ensure segment editing includes engineering fields plus derived planning-context fields
+8. [ ] Show planning-context and community factors as read-only values with source labels
+9. [ ] Create lightweight `mapUtils.js` and `drawUtils.js` helpers
+10. [ ] Build `CorridorMap.jsx` with MapLibre and Terra Draw integration points
+11. [ ] Add `AnalyzeActions.jsx` with loading and disabled states
+12. [ ] Wire the scenario payload to `api.js`
+13. [ ] Keep all components under 150 lines by splitting concerns early
 
 ## Demo Test
 
@@ -170,7 +182,7 @@ At demo time the team should be able to:
 2. switch between city presets
 3. rename corridor alternatives
 4. change at least one segment from conventional to fiber-reduced
-5. change at least one real-world factor such as traffic or population catchment
+5. inspect at least one segment and see source-labeled traffic, flood, and community metrics without typing them manually
 6. click analyze and send the scenario payload successfully
 
 ## Out of Scope
@@ -179,5 +191,5 @@ At demo time the team should be able to:
 - full route drawing tools
 - GIS snapping to roads
 - live parcel or utility overlays
-- live traffic or census ingestion
+- live traffic or census ingestion in the browser
 - account-based project management

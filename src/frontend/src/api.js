@@ -28,3 +28,19 @@ export async function analyzeScenario(payload) {
 export async function analyzePreset() {
   return analyzeScenario({})
 }
+
+/**
+ * Load live background overlay data for the map.
+ * @param {string} cityId
+ * @returns {Promise<object>}
+ */
+export async function getBackgroundOverlays(cityId = 'phoenix') {
+  const res = await fetch(`${API_BASE}/background-overlays?city=${encodeURIComponent(cityId)}&refresh=1`)
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }))
+    throw new Error(err.message || err.error || `API error: ${res.status}`)
+  }
+
+  return res.json()
+}

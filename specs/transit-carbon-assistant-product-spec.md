@@ -86,7 +86,7 @@ Role summary:
 - up to `3` corridor alternatives per scenario
 - manual segment definition for each corridor
 - section comparison for at least `3` slab/guideway section families
-- manual or preset-based input of real planning factors:
+- public-data-derived planning factors attached to each segment:
   - traffic intensity
   - intersection density
   - utility conflict risk
@@ -123,7 +123,7 @@ Role summary:
 2. User enters a project name and planning goal.
 3. User creates up to 3 corridor alternatives.
 4. User defines segments for each corridor.
-5. User assigns a section family and planning-context inputs to each segment.
+5. User assigns a section family while the app attaches or refreshes a planning-context snapshot from public datasets for each segment.
 6. User runs analysis.
 7. App compares alternatives and highlights:
    - lowest carbon
@@ -166,6 +166,8 @@ Optional stretch:
 ## Real Planning Factors
 
 The MVP should separate `physical segment type` from `real-world corridor context`.
+
+These fields should be derived from public or agency datasets, not manually typed by end users.
 
 ### Traffic And Operations
 
@@ -215,6 +217,8 @@ These factors mainly affect:
 
 ## Required Inputs
 
+### User-Provided Inputs
+
 - city preset
 - project name
 - corridor name
@@ -227,6 +231,9 @@ These factors mainly affect:
 - reinforcement type
 - rebar quantity or fiber quantity
 - target service life
+
+### Derived Context Inputs
+
 - traffic AADT
 - lane count
 - intersection density
@@ -509,9 +516,10 @@ The strongest demo story is:
 - overclaiming engineering rigor
 - weak constants without clear labeling
 - false precision in population or traffic-derived scores
+- UI confusion if public-data-derived factors look manually editable
 
 ## Risk Response
 
 - keep optimization conceptual, not code-check level
-- label all factors as heuristic and editable
+- label all factors as heuristic, source-labeled, and reviewable
 - prioritize transparency over false precision
