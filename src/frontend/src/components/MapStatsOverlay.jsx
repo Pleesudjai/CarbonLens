@@ -6,8 +6,8 @@ export default function MapStatsOverlay({ corridorResults, activeCorridorId }) {
   const t = c.totals
   const stats = [
     { label: 'Length', value: `${t.lengthFt.toLocaleString()} ft` },
-    { label: 'Embodied Carbon', value: `${Math.round(t.carbonKgCo2e / 1000)} t` },
-    { label: 'Construction Carbon', value: `${Math.round(t.constructionPhaseCarbonKg / 1000)} t` },
+    { label: 'Material Carbon', value: `${Math.round(t.carbonKgCo2e / 1000)} t` },
+    { label: 'During-Build Carbon', value: `${Math.round(t.constructionPhaseCarbonKg / 1000)} t` },
     { label: 'Total Carbon', value: `${Math.round(t.totalCarbonKg / 1000)} t CO2e` },
     { label: 'Cost', value: `$${(t.costUsd / 1e6).toFixed(2)}M` },
     { label: 'Duration', value: `${t.durationDays.toFixed(0)} days` },

@@ -8,12 +8,6 @@ const SEGMENT_TYPES = [
   ['bridge_approach', 'Bridge Approach'],
 ]
 
-const SECTION_FAMILIES = [
-  ['conventional_rc', 'Conventional RC'],
-  ['fiber_reduced', 'Steel-Fiber (Thinner)'],
-  ['low_cement_rc', 'Low-Cement SCM'],
-]
-
 const CONTEXTS = [
   ['suburban', 'Suburban'],
   ['urban_arterial', 'Urban Arterial'],
@@ -34,29 +28,27 @@ function Field({ label, children }) {
   )
 }
 
-function Select({ value, onChange, options }) {
+function StatusBadge({ tone = 'default', label }) {
+  const tones = {
+    measured: 'border-sky-200 bg-sky-50 text-sky-700',
+    live: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+    default: 'border-amber-200 bg-amber-50 text-amber-700',
+    design: 'border-violet-200 bg-violet-50 text-violet-700',
+  }
+
   return (
-    <select
-      value={value}
-      onChange={onChange}
-      className="rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-800"
-    >
-      {options.map(([v, l]) => (
-        <option key={v} value={v}>
-          {l}
-        </option>
-      ))}
-    </select>
+    <span className={`rounded-full border px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${tones[tone] || tones.default}`}>
+      {label}
+    </span>
   )
 }
 
-function StaticField({ label, value, source }) {
+function FieldLabel({ label, statusTone, statusLabel }) {
   return (
-    <div className="flex flex-col gap-0.5">
-      <span className="text-[10px] uppercase tracking-wider text-gray-400">{label}</span>
-      <div className="rounded border border-gray-200 bg-gray-100 px-2 py-1.5 text-xs text-gray-800">{value}</div>
-      {source && <span className="text-[10px] text-gray-400">{source}</span>}
-    </div>
+    <span className="flex items-center gap-1 text-[10px] uppercase tracking-wider text-gray-400">
+      <span>{label}</span>
+      {statusLabel && <StatusBadge tone={statusTone} label={statusLabel} />}
+    </span>
   )
 }
 
@@ -68,23 +60,42 @@ function SourceChip({ children }) {
   )
 }
 
-function Flag({ active, label, source }) {
+function ReadOnlyField({ label, value, source, statusTone, statusLabel }) {
   return (
     <div className="flex flex-col gap-0.5">
+      <FieldLabel label={label} statusTone={statusTone} statusLabel={statusLabel} />
+      <div className="rounded border border-gray-200 bg-gray-100 px-2 py-1.5 text-xs text-gray-800">{value}</div>
+      {source && <span className="text-[10px] text-gray-400">{source}</span>}
+    </div>
+  )
+}
+
+function Flag({ active, label, source, statusTone, statusLabel }) {
+  return (
+    <div className="flex flex-col gap-0.5">
+      <FieldLabel label={label} statusTone={statusTone} statusLabel={statusLabel} />
       <div
         className={`rounded border px-2 py-1 text-[11px] ${
           active ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-gray-200 bg-gray-100 text-gray-500'
         }`}
       >
-        {label}: {active ? 'Detected' : 'Clear'}
+        {active ? 'Detected' : 'Clear'}
       </div>
       <span className="text-[10px] text-gray-400">{source}</span>
     </div>
   )
 }
 
-export default function SegmentEditor({ segment, onUpdate, onRemove }) {
-  const [open, setOpen] = useState(false)
+function defaultSource(label) {
+  return `${label} placeholder for now.`
+}
+
+function livePreviewSource(source, fallback) {
+  return source ? `${source}.` : fallback
+}
+
+export default function SegmentEditor({ segment, previewSegment, resultSegment, onUpdate, onRemove }) {
+  const [open, setOpen] = useState(true)
 
   const set = (path, val) => {
     const s = structuredClone(segment)
@@ -97,6 +108,67 @@ export default function SegmentEditor({ segment, onUpdate, onRemove }) {
 
   const f = segment.factors || {}
   const cm = segment.community || {}
+  const previewFactors = previewSegment?.factors || {}
+  const previewCommunity = previewSegment?.community || {}
+  const previewContext = previewSegment?.previewContext || {}
+  const liveFactors = resultSegment?.factors || {}
+  const liveFlood = resultSegment?.liveContext?.flood || null
+  const liveConstructability = resultSegment?.liveContext?.constructability || null
+
+  const hasLiveFlood = Boolean(liveFlood?.live)
+  const hasLiveConstructability = Boolean(liveConstructability?.live)
+  const hasPreviewTraffic = Boolean(previewContext.trafficAadt)
+  const hasPreviewPopulation = Boolean(previewContext.populationCatchment)
+  const hasPreviewJobs = Boolean(previewContext.jobCatchment)
+  const hasPreviewZeroCar = Boolean(previewContext.zeroCarHouseholdsPct)
+  const hasPreviewTransfer = Boolean(previewContext.transferConnectivity)
+  const hasPreviewActivity = Boolean(previewContext.activityNodeImportance)
+  const hasPreviewStrongTransfer = Boolean(previewContext.stationTransferStrong)
+
+  const intersectionDensityValue = hasLiveConstructability
+    ? liveFactors.intersectionDensityPerMi
+    : f.intersectionDensityPerMi
+  const floodRiskValue = hasLiveFlood ? liveFlood.risk : f.floodRisk
+  const utilityConflictValue = hasLiveConstructability ? liveFactors.utilityDensityHigh : f.utilityDensityHigh
+  const trafficSensitiveValue = hasLiveConstructability ? liveFactors.trafficSensitivityHigh : f.trafficSensitivityHigh
+  const constrainedRowValue = hasLiveConstructability ? liveFactors.constrainedRow : f.constrainedRow
+  const urbanCoreValue = hasLiveConstructability ? liveFactors.urbanCore : f.urbanCore
+  const trafficAadtValue = hasPreviewTraffic ? previewFactors.trafficAadt : f.trafficAadt
+  const populationValue = hasPreviewPopulation ? previewCommunity.populationCatchment : cm.populationCatchment
+  const jobsValue = hasPreviewJobs ? previewCommunity.jobCatchment : cm.jobCatchment
+  const zeroCarValue = hasPreviewZeroCar ? previewCommunity.zeroCarHouseholdsPct : cm.zeroCarHouseholdsPct
+  const transferValue = hasPreviewTransfer ? previewCommunity.transferConnectivity : cm.transferConnectivity
+  const activityValue = hasPreviewActivity ? previewCommunity.activityNodeImportance : cm.activityNodeImportance
+  const strongTransferValue = hasPreviewStrongTransfer ? previewCommunity.stationTransferStrong : cm.stationTransferStrong
+
+  const measuredSource = 'Measured from the line you drew on the map.'
+  const liveFloodSource = hasLiveFlood
+    ? `Live: ${liveFlood.source}.`
+    : defaultSource('Flood risk')
+  const liveConstructabilitySource = hasLiveConstructability
+    ? `Live: ${liveConstructability.source}.`
+    : defaultSource('Road-context constructability')
+  const trafficSource = hasPreviewTraffic
+    ? livePreviewSource(previewContext.trafficAadt?.source, 'Live traffic sample.')
+    : 'Default AADT in the editor.'
+  const populationSource = hasPreviewPopulation
+    ? livePreviewSource(previewContext.populationCatchment?.source, 'Live population context.')
+    : defaultSource('Population catchment')
+  const jobsSource = hasPreviewJobs
+    ? livePreviewSource(previewContext.jobCatchment?.source, 'Live jobs context.')
+    : defaultSource('Jobs score')
+  const zeroCarSource = hasPreviewZeroCar
+    ? livePreviewSource(previewContext.zeroCarHouseholdsPct?.source, 'Live zero-car household share.')
+    : defaultSource('Zero-car household score')
+  const transferSource = hasPreviewTransfer
+    ? livePreviewSource(previewContext.transferConnectivity?.source, 'Live transfer context.')
+    : defaultSource('Transfer connectivity')
+  const activitySource = hasPreviewActivity
+    ? livePreviewSource(previewContext.activityNodeImportance?.source, 'Live activity-node context.')
+    : defaultSource('Activity node score')
+  const strongTransferSource = hasPreviewStrongTransfer
+    ? livePreviewSource(previewContext.stationTransferStrong?.source, 'Live transfer-node context.')
+    : defaultSource('Transfer strength flag')
 
   return (
     <div className="rounded border border-gray-200 bg-gray-50 p-2.5">
@@ -118,93 +190,170 @@ export default function SegmentEditor({ segment, onUpdate, onRemove }) {
 
       {open && (
         <div className="mt-2 space-y-3">
+          <div className="rounded border border-sky-100 bg-sky-50 px-2.5 py-2 text-[11px] text-sky-800">
+            Measured = from your drawing. Live = public data. Default = placeholder until a live lookup is connected.
+          </div>
+
           <div className="grid grid-cols-2 gap-2">
-            <StaticField
+            <ReadOnlyField
               label="Type"
               value={SEGMENT_TYPE_LABELS[segment.segmentType] || segment.segmentType}
-              source="Auto-classified from alignment + roadway context"
+              statusTone="default"
+              statusLabel="Default"
+              source="Default type for a new option."
             />
-            <Field label="Section">
-              <Select value={segment.sectionFamily} onChange={(e) => set('sectionFamily', e.target.value)} options={SECTION_FAMILIES} />
-            </Field>
-            <StaticField
+            <ReadOnlyField
+              label="Section"
+              value="Conventional RC"
+              statusTone="default"
+              statusLabel="Default"
+              source="Default section in the editor."
+            />
+            <ReadOnlyField
               label="Length (ft)"
               value={(segment.lengthFt || 0).toLocaleString()}
-              source="Derived from map geometry"
+              statusTone="measured"
+              statusLabel="Measured"
+              source={measuredSource}
             />
-            <StaticField
+            <ReadOnlyField
               label="Context"
               value={CONTEXT_LABELS[segment.context] || segment.context}
-              source="AZDOT / local roadway classification"
+              statusTone="default"
+              statusLabel="Default"
+              source="Default roadway context."
             />
           </div>
 
           <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-600">Planning Factors</p>
-          <p className="text-[11px] text-gray-500">These are public-data inputs, not manual design choices.</p>
+          <p className="text-[11px] text-gray-500">Measured values come from your drawing. Live values come from public data.</p>
           <div className="grid grid-cols-2 gap-2">
-            <StaticField
+            <ReadOnlyField
               label="Traffic AADT"
-              value={(f.trafficAadt ?? 0).toLocaleString()}
-              source="ADOT traffic counts"
+              value={(trafficAadtValue ?? 0).toLocaleString()}
+              statusTone={hasPreviewTraffic ? 'live' : 'default'}
+              statusLabel={hasPreviewTraffic ? 'Live' : 'Default'}
+              source={trafficSource}
             />
-            <StaticField
+            <ReadOnlyField
               label="Intersections/mi"
-              value={f.intersectionDensityPerMi ?? 0}
-              source="Road centerlines / intersections"
+              value={intersectionDensityValue ?? 0}
+              statusTone={hasLiveConstructability ? 'live' : 'default'}
+              statusLabel={hasLiveConstructability ? 'Live' : 'Default'}
+              source={liveConstructabilitySource}
             />
-            <StaticField
+            <ReadOnlyField
               label="Flood Risk"
-              value={FLOOD_LABELS[f.floodRisk || 'low']}
-              source="FEMA NFHL"
+              value={FLOOD_LABELS[floodRiskValue || 'low']}
+              statusTone={hasLiveFlood ? 'live' : 'default'}
+              statusLabel={hasLiveFlood ? 'Live' : 'Default'}
+              source={liveFloodSource}
             />
           </div>
           <div className="grid grid-cols-2 gap-2">
-            <Flag active={!!f.utilityDensityHigh} label="Utility conflict" source="Utility GIS overlay" />
-            <Flag active={!!f.trafficSensitivityHigh} label="Traffic sensitive" source="Traffic / activity overlay" />
-            <Flag active={!!f.constrainedRow} label="Constrained ROW" source="ROW width + parcel context" />
-            <Flag active={!!f.urbanCore} label="Urban core" source="Land-use / urban form layer" />
-            <Flag active={!!f.nightWorkOnly} label="Night work" source="Operational constraint rules" />
+            <Flag
+              active={!!utilityConflictValue}
+              label="Utility conflict"
+              statusTone={hasLiveConstructability ? 'live' : 'default'}
+              statusLabel={hasLiveConstructability ? 'Live' : 'Default'}
+              source={liveConstructabilitySource}
+            />
+            <Flag
+              active={!!trafficSensitiveValue}
+              label="Traffic sensitive"
+              statusTone={hasLiveConstructability ? 'live' : 'default'}
+              statusLabel={hasLiveConstructability ? 'Live' : 'Default'}
+              source={liveConstructabilitySource}
+            />
+            <Flag
+              active={!!constrainedRowValue}
+              label="Constrained ROW"
+              statusTone={hasLiveConstructability ? 'live' : 'default'}
+              statusLabel={hasLiveConstructability ? 'Live' : 'Default'}
+              source={liveConstructabilitySource}
+            />
+            <Flag
+              active={!!urbanCoreValue}
+              label="Urban core"
+              statusTone={hasLiveConstructability ? 'live' : 'default'}
+              statusLabel={hasLiveConstructability ? 'Live' : 'Default'}
+              source={liveConstructabilitySource}
+            />
+            <Flag
+              active={!!f.nightWorkOnly}
+              label="Night work"
+              statusTone="default"
+              statusLabel="Default"
+              source="Default operating-rule assumption."
+            />
           </div>
 
           <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-600">Community Factors</p>
           <p className="text-[11px] text-gray-500">
-            Community and equity metrics should come from public demographic and transit datasets.
+            Population, jobs, transfer connectivity, activity nodes, and strong transfer use live map data when available. Anything still marked default is not connected yet.
           </p>
           <div className="grid grid-cols-2 gap-2">
-            <StaticField
+            <ReadOnlyField
               label="Population (1-10)"
-              value={cm.populationCatchment ?? 0}
-              source="Census ACS catchment score"
+              value={populationValue ?? 0}
+              statusTone={hasPreviewPopulation ? 'live' : 'default'}
+              statusLabel={hasPreviewPopulation ? 'Live' : 'Default'}
+              source={populationSource}
             />
-            <StaticField label="Jobs (1-10)" value={cm.jobCatchment ?? 0} source="LEHD / LODES jobs score" />
-            <StaticField
+            <ReadOnlyField
+              label="Jobs (1-10)"
+              value={jobsValue ?? 0}
+              statusTone={hasPreviewJobs ? 'live' : 'default'}
+              statusLabel={hasPreviewJobs ? 'Live' : 'Default'}
+              source={jobsSource}
+            />
+            <ReadOnlyField
               label="Zero-car HH %"
-              value={cm.zeroCarHouseholdsPct ?? 0}
-              source="Census ACS households"
+              value={zeroCarValue ?? 0}
+              statusTone={hasPreviewZeroCar ? 'live' : 'default'}
+              statusLabel={hasPreviewZeroCar ? 'Live' : 'Default'}
+              source={zeroCarSource}
             />
-            <StaticField
+            <ReadOnlyField
               label="Transfer conn. (1-10)"
-              value={cm.transferConnectivity ?? 0}
-              source="GTFS stop + route graph"
+              value={transferValue ?? 0}
+              statusTone={hasPreviewTransfer ? 'live' : 'default'}
+              statusLabel={hasPreviewTransfer ? 'Live' : 'Default'}
+              source={transferSource}
             />
-            <StaticField
+            <ReadOnlyField
               label="Activity nodes (1-10)"
-              value={cm.activityNodeImportance ?? 0}
-              source="Station-area destinations"
+              value={activityValue ?? 0}
+              statusTone={hasPreviewActivity ? 'live' : 'default'}
+              statusLabel={hasPreviewActivity ? 'Live' : 'Default'}
+              source={activitySource}
             />
           </div>
           <div className="grid grid-cols-2 gap-2">
-            <Flag active={!!cm.heatExposureHigh} label="High heat" source="NOAA heat / climate layer" />
-            <Flag active={!!cm.stationTransferStrong} label="Strong transfer" source="GTFS network connectivity" />
+            <Flag
+              active={!!cm.heatExposureHigh}
+              label="High heat"
+              statusTone="default"
+              statusLabel="Default"
+              source={defaultSource('Heat exposure flag')}
+            />
+            <Flag
+              active={!!strongTransferValue}
+              label="Strong transfer"
+              statusTone={hasPreviewStrongTransfer ? 'live' : 'default'}
+              statusLabel={hasPreviewStrongTransfer ? 'Live' : 'Default'}
+              source={strongTransferSource}
+            />
           </div>
 
           <div className="flex flex-wrap gap-2 pt-1">
-            <SourceChip>ADOT traffic</SourceChip>
-            <SourceChip>FEMA flood</SourceChip>
-            <SourceChip>Census ACS</SourceChip>
-            <SourceChip>LEHD LODES</SourceChip>
-            <SourceChip>GTFS</SourceChip>
-            <SourceChip>NOAA heat</SourceChip>
+            <SourceChip>Measured from map geometry</SourceChip>
+            <SourceChip>Default values in editor</SourceChip>
+            {(hasPreviewTraffic || hasPreviewPopulation || hasPreviewJobs || hasPreviewZeroCar || hasPreviewTransfer || hasPreviewActivity || hasPreviewStrongTransfer) && (
+              <SourceChip>Live map context</SourceChip>
+            )}
+            {hasLiveFlood && <SourceChip>Live FEMA after analysis</SourceChip>}
+            {hasLiveConstructability && <SourceChip>Live TIGER after analysis</SourceChip>}
           </div>
         </div>
       )}

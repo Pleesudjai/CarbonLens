@@ -71,11 +71,66 @@ function constructionPenaltyDrivers(segment, factors) {
 
 // ─── Construction-Phase Carbon ──────────────────────────────────────────────
 
-function calculateConstructionPhaseCarbon(trafficAadt, durationDays) {
+function corridorTypeTrafficShareMultiplier(segment) {
   const r = CONSTRUCTION_PHASE_RATES
-  const aadt = trafficAadt || 0
-  const trafficIdlePerDay = aadt * r.avgDelayHoursPerVehicle * r.idleKgCo2PerVehicleHour
-  const trafficDetourPerDay = aadt * r.detourExtraMiles * r.detourKgCo2PerMile
+  const contextMultiplier = r.contextTrafficShareMultiplier?.[segment.context] ?? 1
+  const segmentMultiplier = r.segmentTrafficShareMultiplier?.[segment.segmentType] ?? 1
+  return round(contextMultiplier * segmentMultiplier, 3)
+}
+
+function calculateAffectedTrafficShare(segment, factors) {
+  const r = CONSTRUCTION_PHASE_RATES
+  let share = r.affectedTrafficShareBase * corridorTypeTrafficShareMultiplier(segment)
+
+  if (factors.constrainedRow) share += r.constrainedRowShareAdd
+  if (factors.trafficSensitivityHigh) share += r.trafficSensitivityShareAdd
+  if (factors.urbanCore) share += r.urbanCoreShareAdd
+  if ((factors.intersectionDensityPerMi || 0) > DISRUPTION_THRESHOLDS.intersectionDensityHigh) share += r.highIntersectionShareAdd
+  if (factors.floodRisk === 'moderate') share += r.moderateFloodShareAdd
+  if (factors.floodRisk === 'high') share += r.highFloodShareAdd
+  if (factors.nightWorkOnly) share -= r.nightWorkShareReduction
+
+  return clamp(round(share, 3), r.minAffectedTrafficShare, r.maxAffectedTrafficShare)
+}
+
+function calculateStagedConstructionFactor(segment, factors) {
+  const r = CONSTRUCTION_PHASE_RATES
+  let factor = r.stagedConstructionBaseFactor
+  factor *= r.segmentStageMultiplier?.[segment.segmentType] ?? 1
+  factor *= r.contextStageMultiplier?.[segment.context] ?? 1
+
+  if (factors.constrainedRow) factor += r.constrainedRowStageAdd
+  if (factors.urbanCore) factor += r.urbanCoreStageAdd
+  if (factors.nightWorkOnly) factor -= r.nightWorkStageReduction
+
+  return clamp(round(factor, 3), r.minStagedConstructionFactor, r.maxStagedConstructionFactor)
+}
+
+function calculateDetourTrafficShare(segment, factors, affectedTrafficShare) {
+  const r = CONSTRUCTION_PHASE_RATES
+  let share = affectedTrafficShare * r.detourShareOfAffectedTraffic
+
+  if (factors.constrainedRow) share += r.constrainedRowDetourShareAdd
+  if (factors.urbanCore) share += r.urbanCoreDetourShareAdd
+  if (segment.segmentType === 'elevated_crossing' || segment.segmentType === 'bridge_approach') {
+    share += r.structureDetourShareAdd
+  }
+  if (factors.nightWorkOnly) share -= r.nightWorkDetourReduction
+
+  return clamp(round(share, 3), r.minDetourTrafficShare, r.maxDetourTrafficShare)
+}
+
+function calculateConstructionPhaseCarbon(segment, durationDays) {
+  const r = CONSTRUCTION_PHASE_RATES
+  const factors = segment.factors || {}
+  const aadt = factors.trafficAadt || 0
+  const affectedTrafficShare = calculateAffectedTrafficShare(segment, factors)
+  const stagedConstructionFactor = calculateStagedConstructionFactor(segment, factors)
+  const detourTrafficShare = calculateDetourTrafficShare(segment, factors, affectedTrafficShare)
+  const affectedTrafficAadt = aadt * affectedTrafficShare * stagedConstructionFactor
+  const detourTrafficAadt = aadt * detourTrafficShare * stagedConstructionFactor
+  const trafficIdlePerDay = affectedTrafficAadt * r.avgDelayHoursPerVehicle * r.idleKgCo2PerVehicleHour
+  const trafficDetourPerDay = detourTrafficAadt * r.detourExtraMiles * r.detourKgCo2PerMile
   const equipmentPerDay = r.equipmentKgCo2PerDay
   const totalPerDay = trafficIdlePerDay + trafficDetourPerDay + equipmentPerDay
   const totalKg = round(totalPerDay * durationDays, 0)
@@ -87,6 +142,17 @@ function calculateConstructionPhaseCarbon(trafficAadt, durationDays) {
       equipment: round(equipmentPerDay * durationDays, 0),
     },
     constructionCarbonPerDay: round(totalPerDay, 0),
+    constructionPhaseAssumptions: {
+      baseTrafficAadt: round(aadt, 0),
+      affectedTrafficShare,
+      detourTrafficShare,
+      stagedConstructionFactor,
+      affectedTrafficAadt: round(affectedTrafficAadt, 0),
+      detourTrafficAadt: round(detourTrafficAadt, 0),
+      corridorTypeTrafficMultiplier: corridorTypeTrafficShareMultiplier(segment),
+      avgDelayHoursPerVehicle: r.avgDelayHoursPerVehicle,
+      detourExtraMiles: r.detourExtraMiles,
+    },
   }
 }
 
@@ -204,7 +270,7 @@ export function calculateSegmentMetrics(segment, section, quantities) {
   ), 1, 10)
 
   // Construction-phase carbon (traffic delay + equipment)
-  const constPhase = calculateConstructionPhaseCarbon(factors.trafficAadt, durationDays)
+  const constPhase = calculateConstructionPhaseCarbon(segment, durationDays)
   const totalCarbonKg = carbonKgCo2e + constPhase.constructionPhaseCarbonKg
 
   return {
@@ -229,6 +295,7 @@ export function calculateSegmentMetrics(segment, section, quantities) {
       trackwork: round(trackworkCarbon, 0),
     },
     constructionPhaseBreakdown: constPhase.constructionPhaseBreakdown,
+    constructionPhaseAssumptions: constPhase.constructionPhaseAssumptions,
   }
 }
 
@@ -254,6 +321,7 @@ export function aggregateCorridor(corridor) {
   })
 
   const totalLengthFt = segmentResults.reduce((s, r) => s + r.lengthFt, 0)
+  const totalLengthMi = totalLengthFt / 5280
   const carbonKgCo2e = segmentResults.reduce((s, r) => s + r.metrics.carbonKgCo2e, 0)
   const constructionPhaseCarbonKg = segmentResults.reduce((s, r) => s + r.metrics.constructionPhaseCarbonKg, 0)
   const totalCarbonKg = carbonKgCo2e + constructionPhaseCarbonKg
@@ -266,6 +334,14 @@ export function aggregateCorridor(corridor) {
     const sum = segmentResults.reduce((s, r) => s + r.metrics[field] * r.lengthFt, 0)
     return round(sum / totalLengthFt, 1)
   }
+  const wAvgConstructionAssumption = (field) => {
+    if (totalLengthFt === 0) return 0
+    const sum = segmentResults.reduce(
+      (s, r) => s + ((r.metrics.constructionPhaseAssumptions?.[field] || 0) * r.lengthFt),
+      0,
+    )
+    return round(sum / totalLengthFt, 3)
+  }
 
   return {
     id: corridor.id,
@@ -273,10 +349,16 @@ export function aggregateCorridor(corridor) {
     description: corridor.description || '',
     totals: {
       lengthFt: totalLengthFt,
+      lengthMi: round(totalLengthMi, 3),
       carbonKgCo2e,
       carbonKgCo2ePerLf: totalLengthFt > 0 ? round(carbonKgCo2e / totalLengthFt, 1) : 0,
+      carbonKgCo2ePerMi: totalLengthMi > 0 ? round(carbonKgCo2e / totalLengthMi, 0) : 0,
       constructionPhaseCarbonKg,
+      constructionPhaseCarbonKgPerLf: totalLengthFt > 0 ? round(constructionPhaseCarbonKg / totalLengthFt, 1) : 0,
+      constructionPhaseCarbonKgPerMi: totalLengthMi > 0 ? round(constructionPhaseCarbonKg / totalLengthMi, 0) : 0,
       totalCarbonKg,
+      totalCarbonKgPerLf: totalLengthFt > 0 ? round(totalCarbonKg / totalLengthFt, 1) : 0,
+      totalCarbonKgPerMi: totalLengthMi > 0 ? round(totalCarbonKg / totalLengthMi, 0) : 0,
       costUsd,
       durationDays,
       disruptionScore: wAvg('disruptionScore'),
@@ -284,6 +366,9 @@ export function aggregateCorridor(corridor) {
       buildabilityScore: wAvg('buildabilityScore'),
       communityBenefitScore: wAvg('communityBenefitScore'),
       constructionCarbonPenaltyScore: wAvg('constructionCarbonPenaltyScore'),
+      affectedTrafficShareAvg: wAvgConstructionAssumption('affectedTrafficShare'),
+      detourTrafficShareAvg: wAvgConstructionAssumption('detourTrafficShare'),
+      stagedConstructionFactorAvg: wAvgConstructionAssumption('stagedConstructionFactor'),
       compositeScore: 0, // filled after ranking
     },
     segmentResults,
@@ -303,7 +388,7 @@ export function rankCorridors(corridorResults) {
     return max === min ? 0 : (val - min) / (max - min)
   }
 
-  const carbonVals = vals('carbonKgCo2e')
+  const carbonVals = vals('totalCarbonKg')
   const costVals = vals('costUsd')
   const durationVals = vals('durationDays')
   const disruptionVals = vals('disruptionScore')
@@ -316,7 +401,7 @@ export function rankCorridors(corridorResults) {
   corridorResults.forEach((c) => {
     const t = c.totals
     const composite =
-      normalize(t.carbonKgCo2e, carbonVals) * w.carbon +
+      normalize(t.totalCarbonKg, carbonVals) * w.carbon +
       normalize(t.costUsd, costVals) * w.cost +
       normalize(t.durationDays, durationVals) * w.duration +
       normalize(t.disruptionScore, disruptionVals) * w.disruption +
@@ -341,7 +426,7 @@ function generateRecommendation(corridorResults) {
   }
 
   const bestOverallId = best('compositeScore')
-  const lowestCarbonId = best('carbonKgCo2e')
+  const lowestCarbonId = best('totalCarbonKg')
   const lowestCostId = best('costUsd')
   const fastestId = best('durationDays')
   const lowestDisruptionId = best('disruptionScore')
@@ -353,7 +438,7 @@ function generateRecommendation(corridorResults) {
 
   // Build a plain-language summary
   const strengths = []
-  if (bestOverallId === lowestCarbonId) strengths.push('lowest embodied carbon')
+  if (bestOverallId === lowestCarbonId) strengths.push('lowest total carbon')
   if (bestOverallId === lowestCostId) strengths.push('lowest cost')
   if (bestOverallId === fastestId) strengths.push('fastest construction')
   if (bestOverallId === lowestDisruptionId) strengths.push('lowest disruption')
@@ -364,7 +449,7 @@ function generateRecommendation(corridorResults) {
   if (strengths.length > 0) {
     summary = `${bestName} offers the best overall balance, leading in ${strengths.join(' and ')}.`
   } else {
-    summary = `${bestName} offers the best overall balance across carbon, cost, schedule, disruption, and community benefit — even though no single metric is best-in-class.`
+    summary = `${bestName} offers the best overall balance across total carbon, cost, schedule, disruption, and community benefit, even though no single metric is best-in-class.`
   }
 
   return {

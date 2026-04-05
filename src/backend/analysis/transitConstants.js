@@ -41,12 +41,12 @@ export const SECTION_FAMILIES = {
     durabilityHigh: false,
   },
   fiber_reduced: {
-    label: 'Steel-Fiber-Reinforced (Thinner)',
+    label: 'Fiber Reinforced Concrete (FRC)',
     slabThicknessIn: 12,
     slabWidthFt: 10,
     concreteMix: 'fiber_mix_15_scm',
     scmPct: 15,
-    rebarLbPerCy: 40,
+    rebarLbPerCy: 0,
     steelFiberLbPerCy: 60,
     targetServiceLifeYears: 40,
     baseProductionLfPerDay: 55,
@@ -88,6 +88,55 @@ export const CONSTRUCTION_PHASE_RATES = {
   detourKgCo2PerMile: 0.404,        // EPA: avg passenger vehicle per mile
   avgDelayHoursPerVehicle: 0.05,     // FHWA: 3 minutes average work-zone delay
   equipmentKgCo2PerDay: 2500,        // Industry avg for LRT construction equipment
+  affectedTrafficShareBase: 0.22,    // only part of corridor traffic is directly exposed to work-zone effects
+  minAffectedTrafficShare: 0.10,
+  maxAffectedTrafficShare: 0.50,
+  detourShareOfAffectedTraffic: 0.45, // only a subset of affected traffic takes the modeled detour
+  minDetourTrafficShare: 0.04,
+  maxDetourTrafficShare: 0.22,
+  stagedConstructionBaseFactor: 0.9, // staged / lane-by-lane work reduces the share exposed each day
+  minStagedConstructionFactor: 0.65,
+  maxStagedConstructionFactor: 1.05,
+  contextTrafficShareMultiplier: {
+    urban_core: 1.15,
+    urban_arterial: 1.0,
+    suburban: 0.92,
+    industrial: 0.88,
+  },
+  segmentTrafficShareMultiplier: {
+    at_grade_median: 1.0,
+    embedded_urban_street: 1.12,
+    station_zone: 1.08,
+    elevated_crossing: 0.85,
+    bridge_approach: 0.95,
+  },
+  contextStageMultiplier: {
+    urban_core: 1.08,
+    urban_arterial: 1.0,
+    suburban: 0.94,
+    industrial: 0.9,
+  },
+  segmentStageMultiplier: {
+    at_grade_median: 0.88,
+    embedded_urban_street: 1.0,
+    station_zone: 0.95,
+    elevated_crossing: 0.78,
+    bridge_approach: 0.9,
+  },
+  constrainedRowShareAdd: 0.08,
+  trafficSensitivityShareAdd: 0.08,
+  urbanCoreShareAdd: 0.05,
+  highIntersectionShareAdd: 0.03,
+  moderateFloodShareAdd: 0.02,
+  highFloodShareAdd: 0.04,
+  nightWorkShareReduction: 0.05,
+  constrainedRowStageAdd: 0.04,
+  urbanCoreStageAdd: 0.03,
+  nightWorkStageReduction: 0.05,
+  constrainedRowDetourShareAdd: 0.03,
+  urbanCoreDetourShareAdd: 0.02,
+  structureDetourShareAdd: 0.015,
+  nightWorkDetourReduction: 0.01,
 }
 
 // ─── Segment Type Factors ───────────────────────────────────────────────────

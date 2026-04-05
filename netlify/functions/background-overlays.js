@@ -415,6 +415,56 @@ async function loadArizonaJobsByBlockGroup(blockGroupIds) {
   }
 }
 
+async function loadArizonaZeroCarByBlockGroup(blockGroupIds) {
+  const res = await fetch('https://api.census.gov/data/2023/acs/acs5?get=B08201_001E,B08201_002E&for=block%20group:*&in=state:04%20county:013%20tract:*')
+  if (!res.ok) throw new Error(`Census ACS zero-car query failed: ${res.status}`)
+
+  const rows = await res.json()
+  if (!Array.isArray(rows) || rows.length < 2) {
+    throw new Error('Census ACS zero-car query returned no usable rows')
+  }
+
+  const headers = rows[0]
+  const totalIndex = headers.indexOf('B08201_001E')
+  const zeroCarIndex = headers.indexOf('B08201_002E')
+  const stateIndex = headers.indexOf('state')
+  const countyIndex = headers.indexOf('county')
+  const tractIndex = headers.indexOf('tract')
+  const blockGroupIndex = headers.indexOf('block group')
+
+  if ([totalIndex, zeroCarIndex, stateIndex, countyIndex, tractIndex, blockGroupIndex].some((index) => index < 0)) {
+    throw new Error('Census ACS zero-car query is missing expected columns')
+  }
+
+  const blockGroupIdSet = new Set(blockGroupIds)
+  const byBlockGroup = Object.create(null)
+  let matchedRows = 0
+
+  rows.slice(1).forEach((row) => {
+    const state = String(row[stateIndex] || '').trim().padStart(2, '0')
+    const county = String(row[countyIndex] || '').trim().padStart(3, '0')
+    const tract = String(row[tractIndex] || '').trim().padStart(6, '0')
+    const blockGroup = String(row[blockGroupIndex] || '').trim().padStart(1, '0')
+    const geoid = `${state}${county}${tract}${blockGroup}`
+    if (!blockGroupIdSet.has(geoid)) return
+
+    const totalHouseholds = Number(row[totalIndex])
+    const zeroVehicleHouseholds = Number(row[zeroCarIndex])
+    if (!Number.isFinite(totalHouseholds) || totalHouseholds <= 0 || !Number.isFinite(zeroVehicleHouseholds) || zeroVehicleHouseholds < 0) {
+      return
+    }
+
+    byBlockGroup[geoid] = round((zeroVehicleHouseholds / totalHouseholds) * 100, 1)
+    matchedRows += 1
+  })
+
+  return {
+    byBlockGroup,
+    matchedRows,
+    acsYear: 2023,
+  }
+}
+
 async function fetchPopulationFeatures(cityConfig) {
   const params = new URLSearchParams({
     where: cityConfig.censusWhere,
@@ -502,6 +552,8 @@ async function buildCityOverlays(cityId) {
     .filter(Boolean)
   let jobsMeta = null
   let jobsByGeoid = {}
+  let zeroCarMeta = null
+  let zeroCarByGeoid = {}
   let modeShiftModel = 'population+gtfs-derived-service-gap'
 
   try {
@@ -512,13 +564,20 @@ async function buildCityOverlays(cityId) {
     jobsMeta = { jobsWarning: error.message }
   }
 
+  try {
+    zeroCarMeta = await loadArizonaZeroCarByBlockGroup(blockGroupIds)
+    zeroCarByGeoid = zeroCarMeta.byBlockGroup
+  } catch (error) {
+    zeroCarMeta = { zeroCarWarning: error.message }
+  }
+
   const roadCo2Pressure = buildAadtOverlay(adotGeometry, workbook.bySectionJoinId)
   const delayOverlay = await buildDelayEmissionsOverlay(roadCo2Pressure)
   const delayEmissionsHotspots = delayOverlay.layer
   const modeShiftOpportunity = buildModeShiftOpportunityLayer(
     buildPopulationOverlay(censusFeatures),
     cityId,
-    { jobsByGeoid },
+    { jobsByGeoid, zeroCarByGeoid },
   )
   const sourceParts = [
     'Live ADOT traffic workbook',
@@ -528,6 +587,9 @@ async function buildCityOverlays(cityId) {
 
   if (modeShiftModel === 'population+jobs+gtfs-derived-service-gap') {
     sourceParts.push('LEHD / LODES workplace jobs')
+  }
+  if (Object.keys(zeroCarByGeoid).length > 0) {
+    sourceParts.push('Census ACS zero-vehicle households')
   }
   sourceParts.push('GTFS-derived fixed-guideway stop and route context')
   sourceParts.push('U.S. Census Bureau TIGERweb Transportation delay proxy')
@@ -548,11 +610,14 @@ async function buildCityOverlays(cityId) {
       tigerSecondaryTouches: delayOverlay.meta.tigerSecondaryTouches,
       tigerLocalTouches: delayOverlay.meta.tigerLocalTouches,
       censusBlockGroups: censusFeatures.length,
+      acsZeroCarYear: zeroCarMeta?.acsYear || null,
+      acsZeroCarMatchedRows: zeroCarMeta?.matchedRows || 0,
       lodesJobsUrl: jobsMeta?.jobsUrl || null,
       lodesJobsYear: jobsMeta?.jobsYear || null,
       lodesMatchedRows: jobsMeta?.matchedRows || 0,
       modeShiftModel,
       jobsWarning: jobsMeta?.jobsWarning || null,
+      zeroCarWarning: zeroCarMeta?.zeroCarWarning || null,
       gtfsDerivedContext: true,
       delayProxyModel: 'adot-aadt-plus-tiger-road-network-complexity',
       legend: {

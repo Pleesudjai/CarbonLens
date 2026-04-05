@@ -8,10 +8,10 @@ import { getExistingStationPhoto, getExistingTransitGeojson, getExistingTransitS
 import {
   CITY_PRESETS,
   EXISTING_STATIONS_LAYER,
-  addCorridorLayer,
   addExistingTransitLayer,
   addExistingTransitStationsLayer,
   addSegmentHighlight,
+  syncCorridorLayers,
   syncBackgroundOverlay,
 } from './mapUtils'
 
@@ -20,13 +20,16 @@ const DRAW_SOURCE = 'draw-line'
 const DRAW_LAYER = 'draw-line-layer'
 const DRAW_POINTS = 'draw-points'
 const DRAW_POINTS_LAYER = 'draw-points-layer'
+const DRAW_REFERENCE_SOURCE = 'draw-reference-line'
+const DRAW_REFERENCE_LAYER = 'draw-reference-line-layer'
 
 export default function CorridorMap({
   city = 'phoenix',
   corridors = [],
   selectedSegment = null,
   drawMode = false,
-  backgroundLayer = 'none',
+  drawReferenceGeojson = null,
+  backgroundLayers = [],
   backgroundData = null,
   backgroundLoading = false,
   backgroundError = null,
@@ -76,17 +79,17 @@ export default function CorridorMap({
     if (!loaded || !mapRef.current) return
     syncBackgroundOverlay(
       mapRef.current,
-      backgroundLayer,
+      backgroundLayers,
       backgroundData?.layers?.roadCo2Pressure || backgroundData?.layers?.aadt,
       backgroundData?.layers?.modeShiftOpportunity || backgroundData?.layers?.population,
       backgroundData?.layers?.delayEmissionsHotspots,
     )
-  }, [backgroundLayer, backgroundData, city, loaded])
+  }, [backgroundLayers, backgroundData, city, loaded])
 
   // Render proposed corridor layers
   useEffect(() => {
     if (!loaded || !mapRef.current) return
-    corridors.forEach((corridor, i) => addCorridorLayer(mapRef.current, corridor, i))
+    syncCorridorLayers(mapRef.current, corridors)
   }, [corridors, loaded])
 
   // Render existing stations above all lines
@@ -219,7 +222,21 @@ export default function CorridorMap({
       map.getSource(DRAW_POINTS).setData(pointData)
     } else {
       map.addSource(DRAW_SOURCE, { type: 'geojson', data: lineData })
-      map.addLayer({ id: DRAW_LAYER, type: 'line', source: DRAW_SOURCE, paint: { 'line-color': '#059669', 'line-width': 4 } })
+      map.addLayer({
+        id: DRAW_LAYER,
+        type: 'line',
+        source: DRAW_SOURCE,
+        layout: {
+          'line-cap': 'round',
+          'line-join': 'round',
+        },
+        paint: {
+          'line-color': '#db2777',
+          'line-width': 4.5,
+          'line-opacity': 0.95,
+          'line-dasharray': [2, 1.25],
+        },
+      })
       map.addSource(DRAW_POINTS, { type: 'geojson', data: pointData })
       map.addLayer({ id: DRAW_POINTS_LAYER, type: 'circle', source: DRAW_POINTS, paint: { 'circle-radius': 6, 'circle-color': '#ffffff', 'circle-stroke-color': '#000000', 'circle-stroke-width': 2 } })
     }
@@ -236,6 +253,37 @@ export default function CorridorMap({
     if (map.getSource(DRAW_POINTS)) map.getSource(DRAW_POINTS).setData(emptyPts)
   }, [])
 
+  const syncDrawReference = useCallback(() => {
+    const map = mapRef.current
+    if (!map) return
+
+    const safeData = drawMode && drawReferenceGeojson?.features?.length
+      ? drawReferenceGeojson
+      : { type: 'FeatureCollection', features: [] }
+
+    if (map.getSource(DRAW_REFERENCE_SOURCE)) {
+      map.getSource(DRAW_REFERENCE_SOURCE).setData(safeData)
+      return
+    }
+
+    map.addSource(DRAW_REFERENCE_SOURCE, { type: 'geojson', data: safeData })
+    map.addLayer({
+      id: DRAW_REFERENCE_LAYER,
+      type: 'line',
+      source: DRAW_REFERENCE_SOURCE,
+      layout: {
+        'line-cap': 'round',
+        'line-join': 'round',
+      },
+      paint: {
+        'line-color': '#374151',
+        'line-width': 3,
+        'line-opacity': 0.35,
+        'line-dasharray': [0.8, 1.4],
+      },
+    })
+  }, [drawMode, drawReferenceGeojson])
+
   // Finish drawing
   const finishDraw = useCallback(() => {
     const coords = drawCoordsRef.current
@@ -249,6 +297,12 @@ export default function CorridorMap({
   }, [onDrawComplete, clearDrawPreview])
 
   // Draw mode: click to place points, dblclick to finish
+  useEffect(() => {
+    const map = mapRef.current
+    if (!loaded || !map) return
+    syncDrawReference()
+  }, [drawMode, drawReferenceGeojson, loaded, syncDrawReference])
+
   useEffect(() => {
     const map = mapRef.current
     if (!loaded || !map) return
@@ -300,7 +354,7 @@ export default function CorridorMap({
       <div ref={containerRef} className="h-full w-full rounded-lg" style={{ minHeight: 400 }} />
       <BackgroundLayerControl
         city={city}
-        value={backgroundLayer}
+        value={backgroundLayers}
         onChange={onBackgroundLayerChange}
         hasData={Boolean(
           backgroundData?.layers?.roadCo2Pressure?.features?.length

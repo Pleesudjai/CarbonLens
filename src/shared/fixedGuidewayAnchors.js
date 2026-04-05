@@ -153,6 +153,7 @@ export function buildModeShiftOpportunityLayer(featureCollection, cityId = 'phoe
   const anchors = serviceNodes.map((node) => node.coordinates)
   const settings = getTransitGapSettings(cityId)
   const jobsByGeoid = options.jobsByGeoid || {}
+  const zeroCarByGeoid = options.zeroCarByGeoid || {}
   const populationValues = features
     .map((feature) => Number(feature?.properties?.population))
     .filter((value) => Number.isFinite(value) && value > 0)
@@ -169,6 +170,7 @@ export function buildModeShiftOpportunityLayer(featureCollection, cityId = 'phoe
       const geoid = feature?.properties?.geoid
       const population = Number(feature?.properties?.population) || 0
       const jobs = Number(jobsByGeoid[geoid]) || 0
+      const zeroCarHouseholdsPct = Number(zeroCarByGeoid[geoid])
       const populationNorm = maxPopulation > 0 ? population / maxPopulation : 0
       const jobsNorm = maxJobs > 0 ? jobs / maxJobs : 0
       const nearestFixedGuidewayMiles = distanceToNearestAnchorMiles(coordinates, anchors)
@@ -196,6 +198,7 @@ export function buildModeShiftOpportunityLayer(featureCollection, cityId = 'phoe
           ...feature.properties,
           jobs,
           jobsNorm,
+          zeroCarHouseholdsPct: Number.isFinite(zeroCarHouseholdsPct) ? Math.round(zeroCarHouseholdsPct) : null,
           populationNorm,
           distanceGapNorm,
           transitGapNorm,

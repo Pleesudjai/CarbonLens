@@ -1,4 +1,4 @@
-const CORRIDOR_COLORS = ['bg-emerald-500', 'bg-blue-500', 'bg-amber-500']
+const CORRIDOR_COLORS = ['bg-pink-600', 'bg-teal-500', 'bg-violet-600']
 
 const GRADE_STYLES = {
   A: 'bg-emerald-100 text-emerald-700 border-emerald-300',
@@ -33,6 +33,12 @@ export default function CorridorPanel({
         )}
       </div>
 
+      {corridors.length === 0 && (
+        <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 px-4 py-5 text-sm text-gray-500">
+          No corridor options yet. Click <span className="font-semibold text-emerald-700">+ Add</span> to create your first alternative, then draw the alignment on the map.
+        </div>
+      )}
+
       {corridors.map((c, i) => {
         const active = c.id === activeCorridorId
         const grade = grades[c.id]
@@ -56,9 +62,11 @@ export default function CorridorPanel({
                   {grade}
                 </span>
               )}
-              {corridors.length > 1 && (
+              {active && (
                 <button onClick={(e) => { e.stopPropagation(); onRemoveCorridor(c.id) }}
-                  className="text-xs text-gray-400 hover:text-red-500">x</button>
+                  className="rounded border border-red-200 px-2 py-0.5 text-[10px] font-medium text-red-500 hover:bg-red-50">
+                  Delete
+                </button>
               )}
             </div>
             <div className="mt-1.5 flex items-center gap-3 text-xs text-gray-500">

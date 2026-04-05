@@ -123,7 +123,7 @@ Define at least these 3 presets in `transitConstants.js`.
 - `slabWidthFt`: 10
 - `concreteMix`: `fiber_mix_15_scm`
 - `scmPct`: 15
-- `rebarLbPerCy`: 40
+- `rebarLbPerCy`: 0
 - `steelFiberLbPerCy`: 60
 - `targetServiceLifeYears`: 40
 - `baseProductionLfPerDay`: 55

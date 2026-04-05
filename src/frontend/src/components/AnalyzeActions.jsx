@@ -1,9 +1,9 @@
-export default function AnalyzeActions({ onAnalyze, onReset, loading, hasResults }) {
+export default function AnalyzeActions({ onAnalyze, onReset, loading, hasResults, disabled = false }) {
   return (
     <div className="flex items-center gap-2 pt-2">
       <button
         onClick={onAnalyze}
-        disabled={loading}
+        disabled={loading || disabled}
         className="flex-1 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
       >
         {loading ? (
@@ -11,6 +11,8 @@ export default function AnalyzeActions({ onAnalyze, onReset, loading, hasResults
             <span className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
             Analyzing...
           </span>
+        ) : disabled ? (
+          'Add a Corridor First'
         ) : (
           'Analyze Corridors'
         )}

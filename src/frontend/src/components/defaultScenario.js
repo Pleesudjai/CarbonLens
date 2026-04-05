@@ -82,16 +82,11 @@ export function createPhoenixScenario() {
 }
 
 export function createDefaultScenario(cityId = 'phoenix') {
-  if (cityId === 'phoenix') return createPhoenixScenario()
   // Placeholder for other cities — return a minimal starter
   return {
     cityId,
-    projectName: `${cityId.charAt(0).toUpperCase() + cityId.slice(1)} Transit Study`,
+    projectName: '',
     planningGoal: '',
-    corridors: [{
-      id: 'alt-a', name: 'Alt A',
-      geometry: null,
-      segments: [seg('a-1', 'Segment 1', 'at_grade_median', 'conventional_rc', 5000, 'suburban', {}, {})],
-    }],
+    corridors: [],
   }
 }

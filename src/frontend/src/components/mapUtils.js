@@ -25,8 +25,11 @@ export const CITY_PRESETS = {
   },
 }
 
-// Corridor color palette (up to 3 corridors)
-const CORRIDOR_COLORS = ['#10b981', '#3b82f6', '#f59e0b']
+// Proposed corridor palette kept distinct from the existing transit network.
+const CORRIDOR_COLORS = ['#db2777', '#14b8a6', '#8b5cf6']
+const PROPOSED_CORRIDORS_SOURCE = 'proposed-corridors'
+const PROPOSED_CORRIDORS_CASE_LAYER = 'proposed-corridors-case'
+const PROPOSED_CORRIDORS_LINE_LAYER = 'proposed-corridors-line'
 const EXISTING_TRANSIT_SOURCE = 'existing-transit'
 export const EXISTING_TRANSIT_LAYER = 'existing-transit-line'
 const EXISTING_STATIONS_SOURCE = 'existing-transit-stations'
@@ -56,32 +59,64 @@ function ensureGeojsonSource(map, sourceId, data) {
   }
 }
 
-/**
- * Add or update a corridor line layer on the map.
- * @param {maplibregl.Map} map
- * @param {{ id: string, geojson: GeoJSON.FeatureCollection }} corridor
- * @param {number} index - corridor index for color assignment
- */
-export function addCorridorLayer(map, corridor, index) {
-  const sourceId = `corridor-${corridor.id}`
-  const layerId = `corridor-line-${corridor.id}`
-  const color = CORRIDOR_COLORS[index % CORRIDOR_COLORS.length]
-
-  if (map.getSource(sourceId)) {
-    map.getSource(sourceId).setData(corridor.geojson)
-  } else {
-    map.addSource(sourceId, { type: 'geojson', data: corridor.geojson })
-    map.addLayer({
-      id: layerId,
-      type: 'line',
-      source: sourceId,
-      paint: {
-        'line-color': color,
-        'line-width': 4,
-        'line-opacity': 0.85,
-      },
-    })
+function buildProposedCorridorFeatureCollection(corridors = []) {
+  return {
+    type: 'FeatureCollection',
+    features: corridors.flatMap((corridor, index) => {
+      const color = CORRIDOR_COLORS[index % CORRIDOR_COLORS.length]
+      const features = corridor?.geojson?.features || []
+      return features
+        .filter((feature) => feature?.geometry?.type === 'LineString')
+        .map((feature) => ({
+          ...feature,
+          properties: {
+            ...(feature.properties || {}),
+            corridorId: corridor.id,
+            corridorColor: color,
+          },
+        }))
+    }),
   }
+}
+
+export function syncCorridorLayers(map, corridors = []) {
+  const data = buildProposedCorridorFeatureCollection(corridors)
+
+  if (map.getSource(PROPOSED_CORRIDORS_SOURCE)) {
+    map.getSource(PROPOSED_CORRIDORS_SOURCE).setData(data)
+    return
+  }
+
+  map.addSource(PROPOSED_CORRIDORS_SOURCE, { type: 'geojson', data })
+  map.addLayer({
+    id: PROPOSED_CORRIDORS_CASE_LAYER,
+    type: 'line',
+    source: PROPOSED_CORRIDORS_SOURCE,
+    layout: {
+      'line-cap': 'round',
+      'line-join': 'round',
+    },
+    paint: {
+      'line-color': '#ffffff',
+      'line-width': 7,
+      'line-opacity': 0.92,
+    },
+  })
+  map.addLayer({
+    id: PROPOSED_CORRIDORS_LINE_LAYER,
+    type: 'line',
+    source: PROPOSED_CORRIDORS_SOURCE,
+    layout: {
+      'line-cap': 'round',
+      'line-join': 'round',
+    },
+    paint: {
+      'line-color': ['coalesce', ['get', 'corridorColor'], '#db2777'],
+      'line-width': 4.5,
+      'line-opacity': 0.98,
+      'line-dasharray': [2, 1.25],
+    },
+  })
 }
 
 /**
@@ -163,11 +198,17 @@ export function addExistingTransitStationsLayer(map, geojson) {
 
 export function syncBackgroundOverlay(
   map,
-  overlayId,
+  overlayIds,
   roadCo2PressureGeojson,
   modeShiftOpportunityGeojson,
   delayEmissionsGeojson,
 ) {
+  const activeOverlayIds = Array.isArray(overlayIds)
+    ? overlayIds
+    : overlayIds && overlayIds !== 'none'
+      ? [overlayIds]
+      : []
+
   const beforeId = map.getLayer(EXISTING_TRANSIT_LAYER) ? EXISTING_TRANSIT_LAYER : undefined
 
   ensureGeojsonSource(map, ROAD_CO2_PRESSURE_SOURCE, roadCo2PressureGeojson)
@@ -437,20 +478,28 @@ export function syncBackgroundOverlay(
     )
   }
 
-  setLayerVisibility(map, ROAD_CO2_PRESSURE_HEATMAP_LAYER, overlayId === 'roadCo2Pressure' || overlayId === 'aadt')
-  setLayerVisibility(map, ROAD_CO2_PRESSURE_POINTS_LAYER, overlayId === 'roadCo2Pressure' || overlayId === 'aadt')
+  setLayerVisibility(
+    map,
+    ROAD_CO2_PRESSURE_HEATMAP_LAYER,
+    activeOverlayIds.includes('roadCo2Pressure') || activeOverlayIds.includes('aadt'),
+  )
+  setLayerVisibility(
+    map,
+    ROAD_CO2_PRESSURE_POINTS_LAYER,
+    activeOverlayIds.includes('roadCo2Pressure') || activeOverlayIds.includes('aadt'),
+  )
   setLayerVisibility(
     map,
     MODE_SHIFT_OPPORTUNITY_HEATMAP_LAYER,
-    overlayId === 'modeShiftOpportunity' || overlayId === 'population',
+    activeOverlayIds.includes('modeShiftOpportunity') || activeOverlayIds.includes('population'),
   )
   setLayerVisibility(
     map,
     MODE_SHIFT_OPPORTUNITY_POINTS_LAYER,
-    overlayId === 'modeShiftOpportunity' || overlayId === 'population',
+    activeOverlayIds.includes('modeShiftOpportunity') || activeOverlayIds.includes('population'),
   )
-  setLayerVisibility(map, DELAY_EMISSIONS_HEATMAP_LAYER, overlayId === 'delayEmissionsHotspots')
-  setLayerVisibility(map, DELAY_EMISSIONS_POINTS_LAYER, overlayId === 'delayEmissionsHotspots')
+  setLayerVisibility(map, DELAY_EMISSIONS_HEATMAP_LAYER, activeOverlayIds.includes('delayEmissionsHotspots'))
+  setLayerVisibility(map, DELAY_EMISSIONS_POINTS_LAYER, activeOverlayIds.includes('delayEmissionsHotspots'))
 }
 
 /**
@@ -487,11 +536,8 @@ export function addSegmentHighlight(map, segment) {
  * @param {maplibregl.Map} map
  * @param {string[]} corridorIds
  */
-export function removeCorridorLayers(map, corridorIds) {
-  corridorIds.forEach((id) => {
-    const layerId = `corridor-line-${id}`
-    const sourceId = `corridor-${id}`
-    if (map.getLayer(layerId)) map.removeLayer(layerId)
-    if (map.getSource(sourceId)) map.removeSource(sourceId)
-  })
+export function removeCorridorLayers(map) {
+  if (map.getLayer(PROPOSED_CORRIDORS_LINE_LAYER)) map.removeLayer(PROPOSED_CORRIDORS_LINE_LAYER)
+  if (map.getLayer(PROPOSED_CORRIDORS_CASE_LAYER)) map.removeLayer(PROPOSED_CORRIDORS_CASE_LAYER)
+  if (map.getSource(PROPOSED_CORRIDORS_SOURCE)) map.removeSource(PROPOSED_CORRIDORS_SOURCE)
 }

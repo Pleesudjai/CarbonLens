@@ -6,8 +6,54 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>CarbonLens - Transit Corridor Planner</title>
   </head>
-  <body class="bg-gray-50 text-gray-800">
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
+  <body class="bg-gray-50 text-gray-800" style="margin:0;background:#f9fafb;color:#1f2937;font-family:Inter,Segoe UI,Arial,sans-serif;">
+    <div id="root">
+      <div
+        style="min-height:100vh;display:flex;align-items:flex-start;justify-content:center;padding:40px 24px;box-sizing:border-box;background:#f9fafb;"
+      >
+        <div
+          style="width:100%;max-width:860px;border:1px solid #d1d5db;border-radius:20px;background:#ffffff;padding:24px;box-shadow:0 4px 20px rgba(15,23,42,0.06);"
+        >
+          <div id="boot-status" style="font-size:11px;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;color:#059669;">Loading</div>
+          <h1 style="margin:10px 0 0;font-size:32px;line-height:1.15;color:#111827;">CarbonLens is starting.</h1>
+          <p id="boot-message" style="margin:14px 0 0;font-size:14px;line-height:1.7;color:#4b5563;">
+            If the app does not appear after a few seconds, this panel stays visible so the page never fails as a blank white screen.
+          </p>
+          <div id="boot-details" style="margin-top:18px;font-size:13px;line-height:1.6;color:#6b7280;">
+            Waiting for frontend modules to boot...
+          </div>
+        </div>
+      </div>
+    </div>
+    <script>
+      ;(() => {
+        const status = document.getElementById('boot-status')
+        const message = document.getElementById('boot-message')
+        const details = document.getElementById('boot-details')
+
+        if (status) status.textContent = 'Booting'
+        if (details) details.textContent = 'Loading frontend entry module...'
+
+        import('/src/main.jsx')
+          .then(() => {
+            if (details) details.textContent = 'Frontend entry module loaded.'
+          })
+          .catch((error) => {
+            if (status) {
+              status.textContent = 'Load Error'
+              status.style.color = '#dc2626'
+            }
+            if (message) {
+              message.textContent = 'CarbonLens could not load the frontend entry module. The exact startup error is shown below.'
+            }
+            if (details) {
+              details.textContent = String(error && (error.stack || error.message || error))
+              details.style.whiteSpace = 'pre-wrap'
+              details.style.color = '#991b1b'
+            }
+            console.error('CarbonLens index bootstrap error', error)
+          })
+      })()
+    </script>
   </body>
 </html>

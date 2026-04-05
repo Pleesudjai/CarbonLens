@@ -4,120 +4,178 @@ Layer: backend-module | frontend
 
 ## What We're Building
 
-Add construction-phase carbon (traffic delay + detour + equipment emissions) to the analysis engine output, computed from each segment's `durationDays` and `trafficAadt`. This reveals the hidden 84% of FRC's carbon benefit that the current material-only formula misses.
+Add construction-phase carbon (traffic delay + detour + equipment emissions) to the analysis engine output, computed from each segment's `durationDays`, `trafficAadt`, and live corridor context.
+
+This is now implemented in the current CarbonLens build.
 
 ## Why This Matters
 
-The current engine only counts embodied material carbon (concrete + rebar + fiber + trackwork). But construction itself generates massive CO2 from:
-- **Traffic idling** at work zones (15,000 vehicles x 3 min/day avg delay)
-- **Traffic detours** (1.5 extra miles per detoured trip)
-- **Construction equipment** (excavators, trucks, pavers, generators)
+Embodied carbon alone does not tell the full RC vs FRC story.
 
-FRC builds 48% faster (121 vs 231 days/mile), which eliminates ~1,948 tonnes/mile of construction-phase carbon. This is 5x larger than the 380-tonne embodied savings.
+Construction itself generates major CO2 from:
+- traffic idling at work zones
+- traffic detours
+- construction equipment
+
+Because FRC builds faster, it can reduce not only material carbon, but also community-facing construction emissions.
+
+The current model also fixes the earlier overstatement problem where full `AADT` was effectively counted every day. It now uses:
+- an `affected traffic share`
+- a `staged construction factor`
+- a `corridor type factor` based on context + segment type
 
 ## Inputs / Outputs
 
-- Input: existing segment `factors.trafficAadt` and computed `metrics.durationDays` (already in the engine)
-- Output: new fields in segment metrics and corridor totals:
-  - `constructionPhaseCarbonKg` — total construction-phase emissions
-  - `constructionPhaseBreakdown` — { trafficIdle, trafficDetour, equipment }
-  - `totalCarbonKg` — embodied + construction phase combined
-  - `totalCarbonSavingsVsRc` — comparison against conventional RC baseline
+- Input:
+  - existing segment `factors.trafficAadt`
+  - live / editor context such as `factors.constrainedRow`, `factors.trafficSensitivityHigh`, `factors.urbanCore`, `factors.intersectionDensityPerMi`, `factors.floodRisk`, `factors.nightWorkOnly`
+  - segment `context`
+  - segment `segmentType`
+  - computed `metrics.durationDays`
+- Output:
+  - `constructionPhaseCarbonKg`
+  - `constructionPhaseBreakdown`
+  - `constructionPhaseAssumptions`
+  - `totalCarbonKg`
 
 ## Construction-Phase Carbon Formula
 
 ### Per Segment
 
-```
-avgDelayHoursPerVehicle = 0.05  (3 minutes average delay)
+```text
+affectedTrafficShare =
+  clamp(
+    affectedTrafficShareBase x corridorTypeTrafficMultiplier
+    + ROW / traffic-sensitive / urban-core / flood / intersection adjustments
+    - night-work reduction,
+    0.10,
+    0.50
+  )
+
+stagedConstructionFactor =
+  clamp(
+    stagedConstructionBaseFactor
+    x segmentStageMultiplier
+    x contextStageMultiplier
+    + constrained-ROW / urban-core adjustments
+    - night-work reduction,
+    0.65,
+    1.05
+  )
+
+detourTrafficShare =
+  clamp(
+    affectedTrafficShare x 0.45
+    + constrained-ROW / urban-core / structure adjustments
+    - night-work reduction,
+    0.04,
+    0.22
+  )
+
+affectedTrafficAadt = trafficAadt x affectedTrafficShare x stagedConstructionFactor
+detourTrafficAadt = trafficAadt x detourTrafficShare x stagedConstructionFactor
+
+avgDelayHoursPerVehicle = 0.05
 detourExtraMiles = 1.5
 
-trafficIdlePerDay = trafficAadt × avgDelayHoursPerVehicle × 8.16 kg CO2/hr
-trafficDetourPerDay = trafficAadt × detourExtraMiles × 0.404 kg CO2/mile
-equipmentPerDay = 2500 kg CO2/day (flat rate for typical light-rail construction)
+trafficIdlePerDay = affectedTrafficAadt x avgDelayHoursPerVehicle x 8.16 kg CO2 per vehicle-hour
+trafficDetourPerDay = detourTrafficAadt x detourExtraMiles x 0.404 kg CO2 per mile
+equipmentPerDay = 2500 kg CO2 per day
 
 constructionCarbonPerDay = trafficIdlePerDay + trafficDetourPerDay + equipmentPerDay
-constructionPhaseCarbonKg = constructionCarbonPerDay × durationDays
+constructionPhaseCarbonKg = constructionCarbonPerDay x durationDays
 ```
 
-### Per Corridor (sum of segments)
+### Per Corridor
 
-```
+```text
 totalConstructionPhaseCarbonKg = sum(segment.constructionPhaseCarbonKg)
-totalCarbonKg = carbonKgCo2e (embodied) + totalConstructionPhaseCarbonKg
+totalCarbonKg = embodiedCarbonKg + totalConstructionPhaseCarbonKg
 ```
 
-### Constants
+## Constants
 
 | Constant | Value | Source |
 |----------|-------|--------|
-| Idle emission rate | 8.16 kg CO2 per 1,000 idle-hours | EPA vehicle emission factors |
-| Detour emission rate | 0.404 kg CO2 per mile | EPA avg passenger vehicle |
-| Avg delay per vehicle | 0.05 hours (3 min) | FHWA work zone estimates |
+| Idle emission rate | 8.16 kg CO2 per vehicle-hour | EPA vehicle emission factors |
+| Detour emission rate | 0.404 kg CO2 per mile | EPA average passenger vehicle |
+| Avg delay per affected vehicle | 0.05 hours (3 min) | FHWA work-zone estimate |
 | Detour extra miles | 1.5 miles | FHWA typical urban arterial |
-| Equipment per day | 2,500 kg CO2 | Industry avg for LRT construction |
-| Affected traffic fraction | 100% of AADT | Conservative (uses segment's own AADT) |
+| Equipment per day | 2,500 kg CO2 | Conceptual LRT construction average |
+| Affected traffic share base | 22% | Calibrated planning assumption |
+| Affected traffic share range | 10% - 50% | Calibrated planning range |
+| Staged construction factor range | 0.65 - 1.05 | Corridor staging calibration |
 
-## Material Rate Corrections (from carbon-emission-factors.md cross-check)
+## Material Rate Corrections Cross-Checked From `carbon-emission-factors.md`
 
-These discrepancies were identified during the fact-check against ICE Database v3.0 and must be fixed in the same update:
+These are the values the current engine now uses:
 
-| Constant | Current | Corrected | Source |
-|----------|---------|-----------|--------|
-| `rebarKgCo2ePerLb` | 0.82 | **0.90** | ICE v3: 1,990 kg/t / 2,205 lb/t = 0.903 |
-| `steelFiberKgCo2ePerLb` | 1.10 | **1.03** | ICE v3 wire rod: 2,270 kg/t / 2,205 lb/t = 1.030 |
-| `ppFiberKgCo2ePerLb` | (missing) | **0.91** | BarChip 48 EPD (S-P-02054): 2,000 kg/t / 2,205 lb/t |
-| `ppFiberCostPerLb` | (missing) | **0.85** | Industry average for PP macro fiber |
+| Constant | Implemented Value |
+|----------|-------------------|
+| `rebarKgCo2ePerLb` | `0.90` |
+| `steelFiberKgCo2ePerLb` | `1.03` |
+| `ppFiberKgCo2ePerLb` | `0.91` |
+| `ppFiberCostPerLb` | `0.85` |
 
-These corrections affect all embodied carbon calculations. The rebar rate increases (+10%), the steel fiber rate decreases (-6%), and PP fiber support is added for future section families.
-
-## Files to Create or Edit
+## Implemented Files
 
 ### Backend
-- `src/backend/analysis/transitConstants.js` — add `CONSTRUCTION_PHASE_RATES` constant block + fix `MATERIAL_RATES` (rebar, steel fiber, add PP fiber)
-- `src/backend/analysis/transitCarbonEngine.js` — add `calculateConstructionPhaseCarbon()` function, extend `calculateSegmentMetrics()` return, extend `aggregateCorridor()` totals
+- `src/backend/analysis/transitConstants.js`
+- `src/backend/analysis/transitCarbonEngine.js`
 
 ### Frontend
-- `src/frontend/src/components/ResultsSummaryCards.jsx` — add construction-phase carbon and total carbon rows
-- `src/frontend/src/components/MapStatsOverlay.jsx` — show total carbon (embodied + construction)
-- `src/frontend/src/components/SectionTradeoffCard.jsx` — add insight about construction-phase savings
-- `src/frontend/src/components/CorridorComparisonChart.jsx` — add stacked bar showing embodied vs construction-phase
+- `src/frontend/src/components/ResultsSummaryCards.jsx`
+- `src/frontend/src/components/MapStatsOverlay.jsx`
+- `src/frontend/src/components/SectionTradeoffCard.jsx`
+- `src/frontend/src/components/CorridorComparisonChart.jsx`
+- `src/frontend/src/components/SegmentBreakdownTable.jsx`
 
-## Implementation Steps
+## Implementation Status
 
-0. [ ] Fix `MATERIAL_RATES` in `transitConstants.js`: rebar 0.82→0.90, steel fiber 1.10→1.03, add ppFiber 0.91/0.85
-1. [ ] Add `CONSTRUCTION_PHASE_RATES` to `transitConstants.js`
-2. [ ] Add `calculateConstructionPhaseCarbon(segment, durationDays)` to `transitCarbonEngine.js`
-3. [ ] Extend `calculateSegmentMetrics()` to include construction-phase carbon in return
-4. [ ] Extend `aggregateCorridor()` to sum construction-phase carbon in totals
-5. [ ] Add `totalCarbonKg` (embodied + construction) to corridor totals
-6. [ ] Update `ResultsSummaryCards.jsx` — add construction-phase and total carbon rows
-7. [ ] Update `MapStatsOverlay.jsx` — show total carbon
-8. [ ] Update `SectionTradeoffCard.jsx` — add construction-phase insight
-9. [ ] Update `CorridorComparisonChart.jsx` — stacked bar (embodied vs construction-phase)
-10. [ ] Verify with Phoenix preset: FRC total carbon should be ~45% less than RC (not just 34%)
+0. [x] Fix material rates in `transitConstants.js`
+1. [x] Add `CONSTRUCTION_PHASE_RATES`
+2. [x] Add `calculateConstructionPhaseCarbon()`
+3. [x] Extend segment metrics with construction-phase carbon
+4. [x] Extend corridor totals with construction-phase carbon
+5. [x] Add `totalCarbonKg`
+6. [x] Show embodied, construction-phase, and total carbon in results
+7. [x] Show total carbon in the map stats overlay
+8. [x] Add construction-phase insight in `Section Tradeoffs`
+9. [x] Add stacked embodied vs construction chart
+10. [x] Add structure-level carbon comparison view
 
-## Expected Results (Phoenix Preset, Per Mile)
+## Expected Interpretation
 
-| Metric | Conventional RC | Steel-Fiber FRC | Savings |
-|--------|----------------|-----------------|---------|
-| Embodied carbon | 1,111 t | 731 t | 380 t (34%) |
-| Construction-phase carbon | 4,091 t | 2,143 t | 1,948 t (48%) |
-| **Total carbon** | **5,202 t** | **2,874 t** | **2,328 t (45%)** |
+For RC vs FRC:
+- `Embodied Carbon` explains the material savings
+- `Construction-Phase Carbon` explains the schedule-driven savings and traffic-exposure assumptions
+- `Total Carbon` is the judge-facing number for the combined story
+
+For same-section corridors with different totals:
+- same `Material Carbon / mile` is expected if the slab recipe is the same
+- large differences usually come from `During-Build Carbon / mile`
+- those differences now come from a more believable subset of affected traffic, not the old full-AADT assumption
 
 ## Demo Test
 
-1. Click Analyze with Phoenix preset
-2. Results table shows three carbon rows: Embodied, Construction Phase, Total
-3. FRC corridor shows ~45% total carbon reduction (not just 34%)
-4. Bar chart shows stacked bars (green = embodied, amber = construction phase)
-5. Section Tradeoffs panel says something like: "Alt B saves 1,948 tonnes of construction-phase CO2 by building 110 fewer days"
-6. MapStatsOverlay shows total carbon (embodied + construction)
+1. Click `Analyze Corridors`
+2. Confirm `Corridor Comparison` shows:
+   - `Embodied Carbon`
+   - `Construction-Phase Carbon`
+   - `Total Carbon`
+3. Confirm `Total Carbon Breakdown` shows stacked bars
+4. Confirm `Structure Carbon Comparison` shows each segment with:
+   - structure type
+   - section family
+   - embodied carbon
+   - construction-phase carbon
+   - total carbon
+5. Confirm `Section Tradeoffs` explains the RC vs FRC savings story in plain language
 
-## Out of Scope
+## Out Of Scope
 
-- Real-time traffic data integration (uses segment AADT from presets)
-- Equipment-specific emission models (uses flat daily rate)
-- Worker commute emissions
-- Supply chain transportation emissions
-- Scope 2/3 grid electricity emissions
+- real-time traffic feeds
+- equipment-specific duty-cycle modeling
+- worker commute emissions
+- supplier transport emissions
+- full lifecycle end-of-life carbon

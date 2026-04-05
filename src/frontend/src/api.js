@@ -44,3 +44,23 @@ export async function getBackgroundOverlays(cityId = 'phoenix') {
 
   return res.json()
 }
+
+/**
+ * Ask the secure backend Claude advisor to interpret deterministic corridor results.
+ * @param {{scenario?: object, analysis: object, lens?: string}} payload
+ * @returns {Promise<object>}
+ */
+export async function getAiCorridorAdvisor(payload) {
+  const res = await fetch(`${API_BASE}/ai-corridor-advisor`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }))
+    throw new Error(err.error || err.message || `API error: ${res.status}`)
+  }
+
+  return res.json()
+}

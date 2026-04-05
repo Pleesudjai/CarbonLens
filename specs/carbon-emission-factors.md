@@ -258,7 +258,7 @@ Computed using CarbonLens engine constants for a 10-ft single-track slab, 1 mile
 
 | Source | kg CO2e Saved | Mechanism |
 |--------|--------------|-----------|
-| Rebar elimination (240 to 40 lb/cy) | 384,854 | 83% rebar replaced by fiber |
+| Rebar elimination (240 to 0 lb/cy) | 448,996 | Rebar cage removed; steel fibers carry the reinforcement role |
 | Fiber adds back | -129,067 | 60 lb/cy steel fiber at 1.10 kg CO2e/lb |
 | Thinner slab (14 to 12 in) | 123,852 | 14.3% less concrete volume (326 cy/mile) |
 | **Net savings** | **379,639 kg** | **= 380 tonnes CO2e per mile** |

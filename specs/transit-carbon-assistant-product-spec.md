@@ -340,7 +340,7 @@ Use this conceptual schema for all layers.
             "slabThicknessIn": 12,
             "concreteMix": "fiber_mix_15_scm",
             "scmPct": 15,
-            "rebarLbPerCy": 40,
+            "rebarLbPerCy": 0,
             "steelFiberLbPerCy": 60,
             "targetServiceLifeYears": 40
           },
