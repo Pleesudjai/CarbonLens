@@ -36,12 +36,6 @@ Side-by-side cross-section comparison of Conventional RC (14 in slab, 240 lb/cy 
 ![Construction Carbon Poster](pics/carbonlens-construction-carbon-poster.png)
 Material carbon + During-build carbon = Total corridor carbon. CarbonLens compares both.
 
-### Cross-Section Details
-
-| Conventional RC | Fiber Reinforced Concrete (FRC) |
-|---|---|
-| ![RC Section](pics/RC%20section.png) | ![FRC Section](pics/FRC%20section.png) |
-
 ---
 
 ## What it does
