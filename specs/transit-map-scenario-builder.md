@@ -21,7 +21,7 @@ Chosen library direction for this spec:
 ## Inputs / Outputs
 
 - Input: city preset selection, corridor alternative form state, segment form state, and derived public-data snapshots for each segment
-- Output: normalized scenario payload sent to `src/frontend/src/api.js`
+- Output: normalized scenario payload sent to `src/frontend/src/api.js`, including corridor line geometry when available
 
 ## Files to Create or Edit
 
@@ -113,13 +113,13 @@ Planning and community factors should not be manual user inputs.
 The UI should present them as read-only, source-labeled fields derived from public or agency datasets such as:
 
 - ADOT traffic counts for `trafficAadt`
-- roadway centerlines and intersection geometry for `intersectionDensityPerMile`
+- Census TIGERweb roadway geometry for `intersectionDensityPerMile`
 - FEMA NFHL for `floodRisk`
 - Census ACS for population, zero-car households, and equity context
 - LEHD / LODES for job density
 - GTFS for transfer connectivity
 - NOAA or local climate layers for heat exposure
-- local roadway classification / parcel context for urban-core and right-of-way constraints
+- TIGER roadway density plus traffic context for `urbanCore`, `constrainedRow`, and utility-conflict proxying
 
 For MVP, do not block the build on live API calls. It is acceptable to use:
 
@@ -176,6 +176,12 @@ Do not attempt advanced drawing plugins unless they are trivial to implement.
 
 Frontend state should match the API contract as closely as possible so `App.jsx` stays simple.
 
+Important payload rule:
+
+- the frontend should send corridor line geometry with each alternative when a preset or drawn line exists
+- backend analysis can then slice the corridor into segment geometry and enrich flood context from FEMA NFHL
+- segment flood risk should not rely only on stale seed data when geometry is present
+
 ## Copy Guidance
 
 Use collaborative language:
@@ -203,7 +209,8 @@ Avoid product copy that implies one person alone changes transit.
 12. [ ] Build `LiveDataBadge.jsx` for live or fallback status
 13. [ ] Add `AnalyzeActions.jsx` with loading and disabled states
 14. [ ] Wire the scenario payload to `api.js`
-15. [ ] Keep all components under 150 lines by splitting concerns early
+15. [ ] Include corridor geometry in the analysis payload so backend-side enrichment can run
+16. [ ] Keep all components under 150 lines by splitting concerns early
 
 ## Demo Test
 

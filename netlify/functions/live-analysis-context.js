@@ -1,10 +1,18 @@
 const FEMA_FLOOD_LAYER_URL = 'https://hazards.fema.gov/arcgis/rest/services/public/NFHL/MapServer/28/query'
 const FLOOD_CACHE_TTL_MS = 1000 * 60 * 60 * 6
+const TIGER_TRANSPORTATION_SERVICE_URL = 'https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/Transportation_LargeScale/MapServer'
+const TIGER_CACHE_TTL_MS = 1000 * 60 * 60 * 6
 
 const floodCache = new Map()
+const tigerCache = new Map()
 
 function toRadians(value) {
   return (value * Math.PI) / 180
+}
+
+function round(value, decimals = 1) {
+  const factor = 10 ** decimals
+  return Math.round(value * factor) / factor
 }
 
 function haversineMeters([lng1, lat1], [lng2, lat2]) {
@@ -113,6 +121,10 @@ function buildFemaCacheKey(lineGeometry) {
   return JSON.stringify(lineGeometry.coordinates)
 }
 
+function buildTigerCacheKey(lineGeometry) {
+  return JSON.stringify(lineGeometry.coordinates)
+}
+
 async function queryFemaFloodFeatures(lineGeometry) {
   if (!lineGeometry?.coordinates?.length || lineGeometry.coordinates.length < 2) return []
 
@@ -144,6 +156,55 @@ async function queryFemaFloodFeatures(lineGeometry) {
 
   const value = (json.features || []).map((feature) => feature.attributes || {})
   floodCache.set(cacheKey, { value, expiresAt: Date.now() + FLOOD_CACHE_TTL_MS })
+  return value
+}
+
+async function queryTigerLayerCount(layerId, lineGeometry) {
+  const esriPolyline = JSON.stringify({
+    paths: [lineGeometry.coordinates],
+    spatialReference: { wkid: 4326 },
+  })
+
+  const params = new URLSearchParams({
+    where: '1=1',
+    geometry: esriPolyline,
+    geometryType: 'esriGeometryPolyline',
+    inSR: '4326',
+    spatialRel: 'esriSpatialRelIntersects',
+    returnCountOnly: 'true',
+    f: 'json',
+  })
+
+  const response = await fetch(`${TIGER_TRANSPORTATION_SERVICE_URL}/${layerId}/query?${params}`)
+  const json = await response.json()
+  if (!response.ok || json.error) {
+    throw new Error(json?.error?.message || `TIGER road query failed: ${response.status}`)
+  }
+
+  return Number(json.count || 0)
+}
+
+async function queryTigerRoadCounts(lineGeometry) {
+  if (!lineGeometry?.coordinates?.length || lineGeometry.coordinates.length < 2) {
+    return {
+      primary: 0,
+      secondary: 0,
+      local: 0,
+    }
+  }
+
+  const cacheKey = buildTigerCacheKey(lineGeometry)
+  const cached = tigerCache.get(cacheKey)
+  if (cached && cached.expiresAt > Date.now()) return cached.value
+
+  const [primary, secondary, local] = await Promise.all([
+    queryTigerLayerCount(0, lineGeometry),
+    queryTigerLayerCount(1, lineGeometry),
+    queryTigerLayerCount(2, lineGeometry),
+  ])
+
+  const value = { primary, secondary, local }
+  tigerCache.set(cacheKey, { value, expiresAt: Date.now() + TIGER_CACHE_TTL_MS })
   return value
 }
 
@@ -209,6 +270,62 @@ function buildFloodFallback(segment, reason) {
   }
 }
 
+function classifyConstructabilityContext(segment, lineGeometry, roadCounts) {
+  const totalMeters = buildCumulativeDistances(lineGeometry.coordinates).slice(-1)[0] || 0
+  const miles = Math.max(totalMeters / 1609.344, 0.1)
+  const primaryPerMi = roadCounts.primary / miles
+  const secondaryPerMi = roadCounts.secondary / miles
+  const localPerMi = roadCounts.local / miles
+  const roadFeatureDensityPerMi = (roadCounts.primary + roadCounts.secondary + roadCounts.local) / miles
+  const weightedRoadDensityPerMi = (roadCounts.primary * 1.6 + roadCounts.secondary * 1.1 + roadCounts.local * 0.6) / miles
+
+  const currentTrafficAadt = segment?.factors?.trafficAadt || 0
+  const currentSegmentType = segment?.segmentType || 'at_grade_median'
+  const intersectionDensityPerMi = Math.max(1, Math.min(18, round(roadFeatureDensityPerMi, 1)))
+  const urbanCore =
+    weightedRoadDensityPerMi >= 12 ||
+    roadFeatureDensityPerMi >= 16 ||
+    (localPerMi >= 10 && (currentSegmentType === 'embedded_urban_street' || currentSegmentType === 'station_zone')) ||
+    (localPerMi >= 11 && currentTrafficAadt >= 22000)
+  const constrainedRow =
+    weightedRoadDensityPerMi >= 12 ||
+    roadFeatureDensityPerMi >= 16 ||
+    (urbanCore && currentTrafficAadt >= 18000) ||
+    ((currentSegmentType === 'embedded_urban_street' || currentSegmentType === 'station_zone') && urbanCore)
+  const utilityDensityHigh =
+    weightedRoadDensityPerMi >= 11 ||
+    (urbanCore && roadFeatureDensityPerMi >= 10) ||
+    (urbanCore && secondaryPerMi >= 2)
+  const trafficSensitivityHigh =
+    currentTrafficAadt >= 30000 ||
+    (urbanCore && currentTrafficAadt >= 22000) ||
+    roadFeatureDensityPerMi >= 14
+
+  return {
+    derivedFactors: {
+      intersectionDensityPerMi,
+      urbanCore,
+      constrainedRow,
+      utilityDensityHigh,
+      trafficSensitivityHigh,
+    },
+    summary:
+      weightedRoadDensityPerMi >= 14
+        ? 'Dense urban road network suggests tighter staging and higher utility conflict risk.'
+        : 'Road-network density suggests a lower constructability constraint profile.',
+    source: 'U.S. Census Bureau TIGERweb Transportation',
+    roadCounts,
+    metrics: {
+      miles: round(miles, 2),
+      primaryPerMi: round(primaryPerMi, 1),
+      secondaryPerMi: round(secondaryPerMi, 1),
+      localPerMi: round(localPerMi, 1),
+      roadFeatureDensityPerMi: round(roadFeatureDensityPerMi, 1),
+      weightedRoadDensityPerMi: round(weightedRoadDensityPerMi, 1),
+    },
+  }
+}
+
 export async function enrichScenarioWithLiveContext(scenario) {
   const warnings = []
   let enrichedSegments = 0
@@ -229,41 +346,77 @@ export async function enrichScenarioWithLiveContext(scenario) {
               liveContext: {
                 ...(segment.liveContext || {}),
                 flood: buildFloodFallback(segment, 'No corridor geometry was available for a live FEMA flood query.'),
+                constructability: {
+                  live: false,
+                  source: 'Scenario fallback',
+                  summary: 'No corridor geometry was available for a live road-network constructability query.',
+                  roadCounts: { primary: 0, secondary: 0, local: 0 },
+                  metrics: null,
+                },
               },
             }
           }
 
-          try {
-            const floodFeatures = await queryFemaFloodFeatures(segmentGeometry)
-            const flood = classifyFloodRisk(floodFeatures)
+          const [floodResult, roadResult] = await Promise.allSettled([
+            queryFemaFloodFeatures(segmentGeometry),
+            queryTigerRoadCounts(segmentGeometry),
+          ])
+
+          const nextFactors = {
+            ...(segment.factors || {}),
+          }
+          const nextLiveContext = {
+            ...(segment.liveContext || {}),
+          }
+
+          if (floodResult.status === 'fulfilled') {
+            const flood = classifyFloodRisk(floodResult.value)
+            nextFactors.floodRisk = flood.risk
+            nextLiveContext.flood = {
+              ...flood,
+              live: true,
+              source: 'FEMA NFHL Flood Hazard Zones',
+            }
+          } else {
+            warnings.push(`${corridor.name} / ${segment.label} / FEMA: ${floodResult.reason?.message || floodResult.reason}`)
+            nextLiveContext.flood = buildFloodFallback(
+              segment,
+              'Live FEMA flood query failed, so the scenario flood setting was retained.',
+            )
+          }
+
+          if (roadResult.status === 'fulfilled') {
+            const constructability = classifyConstructabilityContext(segment, segmentGeometry, roadResult.value)
+            nextFactors.intersectionDensityPerMi = constructability.derivedFactors.intersectionDensityPerMi
+            nextFactors.urbanCore = constructability.derivedFactors.urbanCore
+            nextFactors.constrainedRow = constructability.derivedFactors.constrainedRow
+            nextFactors.utilityDensityHigh = constructability.derivedFactors.utilityDensityHigh
+            nextFactors.trafficSensitivityHigh = constructability.derivedFactors.trafficSensitivityHigh
+            nextLiveContext.constructability = {
+              ...constructability,
+              live: true,
+            }
+          } else {
+            warnings.push(`${corridor.name} / ${segment.label} / TIGER: ${roadResult.reason?.message || roadResult.reason}`)
+            nextLiveContext.constructability = {
+              live: false,
+              source: 'Scenario fallback',
+              summary: 'Live TIGER road-network enrichment failed, so constructability factors were retained from the scenario.',
+              roadCounts: { primary: 0, secondary: 0, local: 0 },
+              metrics: null,
+            }
+          }
+
+          if (floodResult.status === 'fulfilled' || roadResult.status === 'fulfilled') {
             enrichedSegments += 1
-
-            return {
-              ...segment,
-              factors: {
-                ...(segment.factors || {}),
-                floodRisk: flood.risk,
-              },
-              liveContext: {
-                ...(segment.liveContext || {}),
-                flood: {
-                  ...flood,
-                  live: true,
-                  source: 'FEMA NFHL Flood Hazard Zones',
-                },
-              },
-            }
-          } catch (error) {
-            warnings.push(`${corridor.name} / ${segment.label}: ${error.message}`)
+          } else {
             fallbackSegments += 1
+          }
 
-            return {
-              ...segment,
-              liveContext: {
-                ...(segment.liveContext || {}),
-                flood: buildFloodFallback(segment, 'Live FEMA flood query failed, so the scenario flood setting was retained.'),
-              },
-            }
+          return {
+            ...segment,
+            factors: nextFactors,
+            liveContext: nextLiveContext,
           }
         }),
       )
@@ -282,6 +435,7 @@ export async function enrichScenarioWithLiveContext(scenario) {
     },
     meta: {
       floodRiskSource: 'FEMA NFHL Flood Hazard Zones',
+      constructabilitySource: 'U.S. Census Bureau TIGERweb Transportation',
       enrichedSegments,
       fallbackSegments,
       warnings,

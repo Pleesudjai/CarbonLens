@@ -25,7 +25,7 @@ Each overlay should answer one clear question:
 - `Construction Carbon Penalty`
   - where building rail is likely to require more carbon-intensive structure or mitigation
 - `Delay Emissions Hotspots`
-  - optional future layer for corridors where congestion and unreliability likely increase emissions
+  - live proxy layer for corridors where heavy traffic and network complexity likely increase stop-and-go emissions
 
 ## FHWA Alignment
 
@@ -177,20 +177,26 @@ Purpose:
 
 Primary data:
 
-- congestion or reliability data if available
+- live ADOT AADT
+- U.S. Census Bureau TIGERweb Transportation road-network complexity
 - future probe-speed or travel-time data if the team can get it
 
-Phase:
+Phase 4 formula:
 
-- optional Phase 4 only
+- `delayEmissionsHotspots = 0.60 * roadwayDemandNorm + 0.25 * roadNetworkComplexityNorm + 0.15 * trafficClusterNorm`
+
+Phase 4 interpretation:
+
+- this is a transparent proxy for delay-related operating emissions pressure
+- it is not a claimed measured CO2 or speed-based emissions model
 
 Display type:
 
-- corridor line intensity, bottleneck markers, or focused heatmap
+- focused hotspot heatmap with supporting point markers
 
 Legend:
 
-- delay index or reliability index
+- `index 0-100`
 
 Frontend label:
 
@@ -198,7 +204,8 @@ Frontend label:
 
 Implementation note:
 
-- this is useful, but it should come after the first three overlays
+- for the current build, use a defendable live proxy from ADOT + TIGER
+- if better probe-speed or reliability data becomes available later, it can replace this proxy without changing the frontend layer id
 
 ## MVP Build Order
 
@@ -238,6 +245,20 @@ Deliverables:
 - corridor-level and segment-level carbon-penalty indicators
 - clear explanation of why a corridor is structurally carbon-heavy
 
+### Phase 3.5
+
+Deepen:
+
+- `Construction Carbon Penalty` with live flood enrichment
+
+Deliverables:
+
+- send corridor geometry with the analysis payload
+- slice corridor lines into segment geometry before scoring
+- enrich segment `floodRisk` from live FEMA NFHL where possible
+- enrich segment constructability proxies from live Census TIGERweb road-network density
+- fall back to scenario flood assumptions only when live enrichment is unavailable
+
 ### Phase 4
 
 Optional:
@@ -246,7 +267,9 @@ Optional:
 
 Deliverables:
 
-- reliability or delay-informed emissions overlay if a defendable source is available
+- live `Delay Emissions Hotspots` overlay backed by ADOT AADT and TIGER road-network complexity
+- numeric legend with `index 0-100`
+- source-aware labeling that makes the proxy nature explicit
 
 ## Data Source Plan
 
@@ -262,7 +285,8 @@ Deliverables:
   - FEMA NFHL
   - local right-of-way and context heuristics
 - `Delay Emissions Hotspots`
-  - future congestion or reliability source only if available and defendable
+  - current: ADOT AADT + TIGER road-network complexity proxy
+  - future: upgrade to direct congestion or reliability data if available and defendable
 
 ## API Direction
 

@@ -11,6 +11,14 @@ const CORS_HEADERS = {
 const EMPTY_FEATURE_COLLECTION = { type: 'FeatureCollection', features: [] }
 const CACHE_TTL_MS = 1000 * 60 * 60 * 6
 const PAGE_SIZE = 1000
+const TIGER_TRANSPORTATION_SERVICE_URL = 'https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/Transportation_LargeScale/MapServer'
+const TIGER_DELAY_CACHE_TTL_MS = 1000 * 60 * 60 * 6
+const DELAY_GRID_SIZE_DEGREES = 0.03
+const TIGER_DELAY_WEIGHTS = {
+  primary: 1.6,
+  secondary: 1.1,
+  local: 0.45,
+}
 
 const CITY_CONFIG = {
   phoenix: {
@@ -20,6 +28,7 @@ const CITY_CONFIG = {
 }
 
 const cache = new Map()
+const tigerDelayCellCache = new Map()
 
 function jsonResponse(statusCode, body) {
   return {
@@ -141,6 +150,27 @@ async function fetchPagedAdotTrafficSections(bbox) {
   return features
 }
 
+async function queryTigerLayerCountForEnvelope(layerId, envelope) {
+  const params = new URLSearchParams({
+    where: '1=1',
+    geometry: `${envelope[0]},${envelope[1]},${envelope[2]},${envelope[3]}`,
+    geometryType: 'esriGeometryEnvelope',
+    inSR: '4326',
+    spatialRel: 'esriSpatialRelIntersects',
+    returnCountOnly: 'true',
+    f: 'json',
+  })
+
+  const res = await fetch(`${TIGER_TRANSPORTATION_SERVICE_URL}/${layerId}/query?${params}`)
+  if (!res.ok) throw new Error(`TIGER transportation query failed for layer ${layerId}: ${res.status}`)
+  const json = await res.json()
+  if (json.error) {
+    throw new Error(json.error.message || `TIGER transportation query failed for layer ${layerId}`)
+  }
+
+  return Number(json.count || 0)
+}
+
 function sampleCoordinates(coords, sampleCount = 5) {
   if (!Array.isArray(coords) || coords.length === 0) return []
   if (coords.length <= sampleCount) return coords
@@ -160,6 +190,52 @@ function geometryToSamplePoints(geometry) {
     return geometry.coordinates.flatMap((part) => sampleCoordinates(part, 4))
   }
   return []
+}
+
+function round(value, decimals = 1) {
+  const factor = 10 ** decimals
+  return Math.round(value * factor) / factor
+}
+
+function cellKeyForCoordinate([lng, lat], cellSize = DELAY_GRID_SIZE_DEGREES) {
+  const lngIndex = Math.floor(lng / cellSize)
+  const latIndex = Math.floor(lat / cellSize)
+  return `${lngIndex}:${latIndex}`
+}
+
+function cellCenterFromKey(key, cellSize = DELAY_GRID_SIZE_DEGREES) {
+  const [lngIndexText, latIndexText] = key.split(':')
+  const lngIndex = Number(lngIndexText)
+  const latIndex = Number(latIndexText)
+  return [
+    (lngIndex + 0.5) * cellSize,
+    (latIndex + 0.5) * cellSize,
+  ]
+}
+
+function cellEnvelopeFromKey(key, cellSize = DELAY_GRID_SIZE_DEGREES) {
+  const [lngIndexText, latIndexText] = key.split(':')
+  const lngIndex = Number(lngIndexText)
+  const latIndex = Number(latIndexText)
+  const minLng = lngIndex * cellSize
+  const minLat = latIndex * cellSize
+
+  return [minLng, minLat, minLng + cellSize, minLat + cellSize]
+}
+
+function getOrCreateDelayGridCell(grid, key) {
+  if (!grid.has(key)) {
+    grid.set(key, {
+      aadtMax: 0,
+      aadtMeanAccumulator: 0,
+      aadtSampleCount: 0,
+      tigerWeightedDensity: 0,
+      tigerPrimaryTouches: 0,
+      tigerSecondaryTouches: 0,
+      tigerLocalTouches: 0,
+    })
+  }
+  return grid.get(key)
 }
 
 function buildAadtOverlay(geometryFeatures, workbookMap) {
@@ -189,6 +265,106 @@ function buildAadtOverlay(geometryFeatures, workbookMap) {
         },
       })),
     ),
+  }
+}
+
+async function queryTigerDelayCountsByCell(cellKeys) {
+  const uniqueKeys = [...new Set(cellKeys)]
+
+  const entries = await Promise.all(
+    uniqueKeys.map(async (key) => {
+      const cached = tigerDelayCellCache.get(key)
+      if (cached && cached.expiresAt > Date.now()) {
+        return [key, cached.value]
+      }
+
+      const envelope = cellEnvelopeFromKey(key)
+      const [primary, secondary, local] = await Promise.all([
+        queryTigerLayerCountForEnvelope(0, envelope),
+        queryTigerLayerCountForEnvelope(1, envelope),
+        queryTigerLayerCountForEnvelope(2, envelope),
+      ])
+
+      const value = { primary, secondary, local }
+      tigerDelayCellCache.set(key, { value, expiresAt: Date.now() + TIGER_DELAY_CACHE_TTL_MS })
+      return [key, value]
+    }),
+  )
+
+  return Object.fromEntries(entries)
+}
+
+async function buildDelayEmissionsOverlay(roadCo2Pressure) {
+  const grid = new Map()
+  const roadFeatures = roadCo2Pressure?.features || []
+
+  roadFeatures.forEach((feature) => {
+    const coordinates = feature?.geometry?.coordinates
+    if (!Array.isArray(coordinates) || coordinates.length !== 2) return
+
+    const key = cellKeyForCoordinate(coordinates)
+    const cell = getOrCreateDelayGridCell(grid, key)
+    const aadt = Number(feature?.properties?.aadt) || 0
+    cell.aadtMax = Math.max(cell.aadtMax, aadt)
+    cell.aadtMeanAccumulator += aadt
+    cell.aadtSampleCount += 1
+  })
+
+  const cellsWithTraffic = [...grid.entries()].filter(([, cell]) => cell.aadtSampleCount > 0)
+  const tigerCountsByCell = await queryTigerDelayCountsByCell(cellsWithTraffic.map(([key]) => key))
+
+  cellsWithTraffic.forEach(([key, cell]) => {
+    const tigerCounts = tigerCountsByCell[key] || { primary: 0, secondary: 0, local: 0 }
+    cell.tigerPrimaryTouches = tigerCounts.primary
+    cell.tigerSecondaryTouches = tigerCounts.secondary
+    cell.tigerLocalTouches = tigerCounts.local
+    cell.tigerWeightedDensity =
+      (tigerCounts.primary * TIGER_DELAY_WEIGHTS.primary)
+      + (tigerCounts.secondary * TIGER_DELAY_WEIGHTS.secondary)
+      + (tigerCounts.local * TIGER_DELAY_WEIGHTS.local)
+  })
+
+  const maxAadt = Math.max(...cellsWithTraffic.map(([, cell]) => cell.aadtMax), 1)
+  const maxAadtSampleCount = Math.max(...cellsWithTraffic.map(([, cell]) => cell.aadtSampleCount), 1)
+  const maxTigerWeightedDensity = Math.max(...cellsWithTraffic.map(([, cell]) => cell.tigerWeightedDensity), 1)
+
+  const features = cellsWithTraffic.map(([key, cell]) => {
+      const aadtNorm = cell.aadtMax / maxAadt
+      const trafficClusterNorm = cell.aadtSampleCount / maxAadtSampleCount
+      const roadComplexityNorm = cell.tigerWeightedDensity / maxTigerWeightedDensity
+      const delayScore =
+        (0.6 * aadtNorm)
+        + (0.25 * roadComplexityNorm)
+        + (0.15 * trafficClusterNorm)
+      const [lng, lat] = cellCenterFromKey(key)
+
+      return {
+        type: 'Feature',
+        geometry: { type: 'Point', coordinates: [lng, lat] },
+        properties: {
+          delayEmissionsHotspots: Math.round(delayScore * 100),
+          delayProxyAadt: Math.round(cell.aadtMax),
+          delayProxyMeanAadt: Math.round(cell.aadtMeanAccumulator / Math.max(cell.aadtSampleCount, 1)),
+          tigerWeightedDensity: round(cell.tigerWeightedDensity, 1),
+          tigerPrimaryTouches: cell.tigerPrimaryTouches,
+          tigerSecondaryTouches: cell.tigerSecondaryTouches,
+          tigerLocalTouches: cell.tigerLocalTouches,
+          intensityNorm: delayScore,
+        },
+      }
+    })
+
+  return {
+    layer: {
+      type: 'FeatureCollection',
+      features,
+    },
+    meta: {
+      cellsQueried: cellsWithTraffic.length,
+      tigerPrimaryTouches: cellsWithTraffic.reduce((sum, [, cell]) => sum + cell.tigerPrimaryTouches, 0),
+      tigerSecondaryTouches: cellsWithTraffic.reduce((sum, [, cell]) => sum + cell.tigerSecondaryTouches, 0),
+      tigerLocalTouches: cellsWithTraffic.reduce((sum, [, cell]) => sum + cell.tigerLocalTouches, 0),
+    },
   }
 }
 
@@ -337,6 +513,8 @@ async function buildCityOverlays(cityId) {
   }
 
   const roadCo2Pressure = buildAadtOverlay(adotGeometry, workbook.bySectionJoinId)
+  const delayOverlay = await buildDelayEmissionsOverlay(roadCo2Pressure)
+  const delayEmissionsHotspots = delayOverlay.layer
   const modeShiftOpportunity = buildModeShiftOpportunityLayer(
     buildPopulationOverlay(censusFeatures),
     cityId,
@@ -352,18 +530,23 @@ async function buildCityOverlays(cityId) {
     sourceParts.push('LEHD / LODES workplace jobs')
   }
   sourceParts.push('GTFS-derived fixed-guideway stop and route context')
+  sourceParts.push('U.S. Census Bureau TIGERweb Transportation delay proxy')
 
   return {
     cityId,
     meta: {
       mode: 'live',
       fetchedAt: new Date().toISOString(),
-      overlayVersion: 'carbon-v1',
+      overlayVersion: 'carbon-v2',
       sourceSummary: `${sourceParts.join(' + ')}.`,
       aadtWorkbookUrl: workbookUrl,
       aadtSheetName: workbook.sheetName,
       aadtWorkbookRows: workbook.rowCount,
       aadtSectionFeatures: adotGeometry.length,
+      tigerDelayCellsQueried: delayOverlay.meta.cellsQueried,
+      tigerPrimaryTouches: delayOverlay.meta.tigerPrimaryTouches,
+      tigerSecondaryTouches: delayOverlay.meta.tigerSecondaryTouches,
+      tigerLocalTouches: delayOverlay.meta.tigerLocalTouches,
       censusBlockGroups: censusFeatures.length,
       lodesJobsUrl: jobsMeta?.jobsUrl || null,
       lodesJobsYear: jobsMeta?.jobsYear || null,
@@ -371,14 +554,17 @@ async function buildCityOverlays(cityId) {
       modeShiftModel,
       jobsWarning: jobsMeta?.jobsWarning || null,
       gtfsDerivedContext: true,
+      delayProxyModel: 'adot-aadt-plus-tiger-road-network-complexity',
       legend: {
         roadCo2Pressure: { unit: 'vehicles / day' },
         modeShiftOpportunity: { unit: 'index 0-100' },
+        delayEmissionsHotspots: { unit: 'index 0-100' },
       },
     },
     layers: withLegacyLayerAliases({
       roadCo2Pressure,
       modeShiftOpportunity,
+      delayEmissionsHotspots,
     }),
   }
 }
@@ -393,7 +579,8 @@ async function getOverlayPayload(cityId, forceRefresh = false) {
   const value = await buildCityOverlays(cityId)
   const roadCount = value?.layers?.roadCo2Pressure?.features?.length || value?.layers?.aadt?.features?.length || 0
   const modeShiftCount = value?.layers?.modeShiftOpportunity?.features?.length || value?.layers?.population?.features?.length || 0
-  if (roadCount > 0 || modeShiftCount > 0) {
+  const delayCount = value?.layers?.delayEmissionsHotspots?.features?.length || 0
+  if (roadCount > 0 || modeShiftCount > 0 || delayCount > 0) {
     cache.set(cityId, { value, expiresAt: Date.now() + CACHE_TTL_MS })
   }
   return value

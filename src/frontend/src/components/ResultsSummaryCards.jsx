@@ -1,9 +1,9 @@
 const CORRIDOR_COLORS = ['text-emerald-700', 'text-blue-700', 'text-amber-700']
 
 const LENS_PRIMARY = {
-  planner: ['carbonKgCo2e', 'carbonKgCo2ePerLf', 'durationDays', 'constructionCarbonPenaltyScore', 'communityBenefitScore'],
+  planner: ['totalCarbonKg', 'carbonKgCo2e', 'constructionPhaseCarbonKg', 'durationDays', 'communityBenefitScore'],
   contractor: ['costUsd', 'buildabilityScore', 'durationDays', 'maintenanceRiskScore', 'constructionCarbonPenaltyScore'],
-  community: ['communityBenefitScore', 'disruptionScore', 'carbonKgCo2e'],
+  community: ['communityBenefitScore', 'disruptionScore', 'totalCarbonKg'],
 }
 
 function MetricRow({ label, values, unit, format, highlighted }) {
@@ -46,6 +46,8 @@ export default function ResultsSummaryCards({ corridorResults, bestOverallId, le
         </thead>
         <tbody>
           <MetricRow label="Embodied Carbon" values={v('carbonKgCo2e')} unit="kg" highlighted={hi('carbonKgCo2e')} />
+          <MetricRow label="Construction-Phase Carbon" values={v('constructionPhaseCarbonKg')} unit="kg" highlighted={hi('constructionPhaseCarbonKg')} />
+          <MetricRow label="Total Carbon" values={v('totalCarbonKg')} unit="kg" highlighted={hi('totalCarbonKg')} />
           <MetricRow label="Carbon / LF" values={v('carbonKgCo2ePerLf')} unit="kg/lf" format={score} highlighted={hi('carbonKgCo2ePerLf')} />
           <MetricRow label="Cost" values={v('costUsd')} format={(v) => `$${(v / 1e6).toFixed(2)}M`} highlighted={hi('costUsd')} />
           <MetricRow label="Duration" values={v('durationDays')} unit="days" format={score} highlighted={hi('durationDays')} />

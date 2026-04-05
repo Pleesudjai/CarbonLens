@@ -30,7 +30,7 @@ Core positioning:
   - `Road CO2 Pressure`
   - `Mode-Shift Opportunity`
   - `Construction Carbon Penalty`
-  - `Delay Emissions Hotspots` as an optional later phase
+  - `Delay Emissions Hotspots`
 - The first implementation pass should only ship the first 2 overlays as background layers.
 - `Construction Carbon Penalty` should start as a corridor and segment metric before it becomes a citywide layer.
 

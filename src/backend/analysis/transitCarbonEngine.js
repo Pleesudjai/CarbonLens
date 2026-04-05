@@ -15,6 +15,7 @@ import {
   CONSTRUCTION_PENALTY_WEIGHTS,
   CONSTRUCTION_STRUCTURE_SCORES,
   CONSTRUCTION_SECTION_PREMIUM_SCORES,
+  CONSTRUCTION_PHASE_RATES,
 } from './transitConstants.js'
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -66,6 +67,27 @@ function constructionPenaltyDrivers(segment, factors) {
   if (factors.urbanCore) drivers.push('urban_core_staging')
   if (factors.nightWorkOnly) drivers.push('night_work_window')
   return drivers
+}
+
+// ─── Construction-Phase Carbon ──────────────────────────────────────────────
+
+function calculateConstructionPhaseCarbon(trafficAadt, durationDays) {
+  const r = CONSTRUCTION_PHASE_RATES
+  const aadt = trafficAadt || 0
+  const trafficIdlePerDay = aadt * r.avgDelayHoursPerVehicle * r.idleKgCo2PerVehicleHour
+  const trafficDetourPerDay = aadt * r.detourExtraMiles * r.detourKgCo2PerMile
+  const equipmentPerDay = r.equipmentKgCo2PerDay
+  const totalPerDay = trafficIdlePerDay + trafficDetourPerDay + equipmentPerDay
+  const totalKg = round(totalPerDay * durationDays, 0)
+  return {
+    constructionPhaseCarbonKg: totalKg,
+    constructionPhaseBreakdown: {
+      trafficIdle: round(trafficIdlePerDay * durationDays, 0),
+      trafficDetour: round(trafficDetourPerDay * durationDays, 0),
+      equipment: round(equipmentPerDay * durationDays, 0),
+    },
+    constructionCarbonPerDay: round(totalPerDay, 0),
+  }
 }
 
 // ─── 1. Expand Section Inputs ───────────────────────────────────────────────
@@ -181,8 +203,14 @@ export function calculateSegmentMetrics(segment, section, quantities) {
     1,
   ), 1, 10)
 
+  // Construction-phase carbon (traffic delay + equipment)
+  const constPhase = calculateConstructionPhaseCarbon(factors.trafficAadt, durationDays)
+  const totalCarbonKg = carbonKgCo2e + constPhase.constructionPhaseCarbonKg
+
   return {
     carbonKgCo2e,
+    constructionPhaseCarbonKg: constPhase.constructionPhaseCarbonKg,
+    totalCarbonKg,
     costUsd,
     durationDays,
     disruptionScore,
@@ -200,6 +228,7 @@ export function calculateSegmentMetrics(segment, section, quantities) {
       fiber: round(fiberCarbon, 0),
       trackwork: round(trackworkCarbon, 0),
     },
+    constructionPhaseBreakdown: constPhase.constructionPhaseBreakdown,
   }
 }
 
@@ -226,6 +255,8 @@ export function aggregateCorridor(corridor) {
 
   const totalLengthFt = segmentResults.reduce((s, r) => s + r.lengthFt, 0)
   const carbonKgCo2e = segmentResults.reduce((s, r) => s + r.metrics.carbonKgCo2e, 0)
+  const constructionPhaseCarbonKg = segmentResults.reduce((s, r) => s + r.metrics.constructionPhaseCarbonKg, 0)
+  const totalCarbonKg = carbonKgCo2e + constructionPhaseCarbonKg
   const costUsd = segmentResults.reduce((s, r) => s + r.metrics.costUsd, 0)
   const durationDays = round(segmentResults.reduce((s, r) => s + r.metrics.durationDays, 0), 1)
 
@@ -244,6 +275,8 @@ export function aggregateCorridor(corridor) {
       lengthFt: totalLengthFt,
       carbonKgCo2e,
       carbonKgCo2ePerLf: totalLengthFt > 0 ? round(carbonKgCo2e / totalLengthFt, 1) : 0,
+      constructionPhaseCarbonKg,
+      totalCarbonKg,
       costUsd,
       durationDays,
       disruptionScore: wAvg('disruptionScore'),

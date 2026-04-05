@@ -4,12 +4,13 @@ Layer: netlify-function
 
 ## What We're Building
 
-A Netlify Function endpoint that accepts scenario payloads from the frontend, runs the deterministic analysis engine, and returns ranked corridor results in the standard project response format.
+A Netlify Function endpoint that accepts scenario payloads from the frontend, optionally enriches them with live public-data context, runs the deterministic analysis engine, and returns ranked corridor results in the standard project response format.
 
 The function should keep the contract simple:
 
 - receive scenario JSON
 - validate and normalize it
+- enrich geometry-aware context where a public source is available
 - call the engine
 - return analysis results
 
@@ -39,6 +40,13 @@ The request body should support:
     {
       "id": "alt-a",
       "name": "Alt A - Median Running",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [-112.099, 33.509],
+          [-112.099, 33.465]
+        ]
+      },
       "segments": [
         {
           "id": "seg-1",
@@ -79,7 +87,9 @@ Success:
 
 ```json
 {
-  "meta": {},
+  "meta": {
+    "liveContext": {}
+  },
   "corridorResults": [],
   "recommendation": {}
 }
@@ -126,20 +136,24 @@ Suggested success shape:
   "cityId": "phoenix",
   "meta": {
     "mode": "live",
-    "overlayVersion": "carbon-v1",
-    "sourceSummary": "Live ADOT traffic workbook plus Census population context.",
+    "overlayVersion": "carbon-v2",
+    "sourceSummary": "Live ADOT traffic workbook plus Census population context plus TIGER road-network delay proxy.",
     "legend": {
       "roadCo2Pressure": {
         "unit": "vehicles / day"
       },
       "modeShiftOpportunity": {
         "unit": "index 0-100"
+      },
+      "delayEmissionsHotspots": {
+        "unit": "index 0-100"
       }
     }
   },
   "layers": {
     "roadCo2Pressure": { "type": "FeatureCollection", "features": [] },
-    "modeShiftOpportunity": { "type": "FeatureCollection", "features": [] }
+    "modeShiftOpportunity": { "type": "FeatureCollection", "features": [] },
+    "delayEmissionsHotspots": { "type": "FeatureCollection", "features": [] }
   }
 }
 ```
@@ -154,7 +168,7 @@ Phase rules:
 - Phase 3:
   - expose `constructionCarbonPenalty` metadata when the engine can support it
 - Phase 4:
-  - add `delayEmissionsHotspots` only if a defendable source exists
+  - add `delayEmissionsHotspots` from a defendable live proxy built from ADOT AADT plus TIGER road-network complexity
 
 ## Validation Rules
 
@@ -172,6 +186,25 @@ Phase rules:
   - `lengthFt`
   - `sectionFamily` or `sectionInputs`
 - `context` and `community` may be partial, but the API should fill missing optional fields with defaults from the analysis layer
+- `geometry` is optional but strongly preferred for live context enrichment
+- when corridor geometry is present, the API should be allowed to derive or overwrite selected segment factors from public data
+
+## Live Context Enrichment
+
+For the current implementation pass, `/api/analyze` should enrich `Construction Carbon Penalty` inputs with:
+
+- corridor line geometry
+- segment slicing derived from the corridor line and declared segment lengths
+- live FEMA NFHL flood context for each segment
+- live Census TIGERweb transportation context for each segment
+
+The API should:
+
+- keep the deterministic engine pure
+- perform live public-data fetches before calling the engine
+- fall back to the scenario's existing flood setting if live FEMA enrichment fails
+- derive constructability proxies such as `intersectionDensityPerMi`, `urbanCore`, `constrainedRow`, and `utilityDensityHigh` from live road-network context when possible
+- report enrichment status in `meta.liveContext`
 
 ## Implementation Steps
 
@@ -181,11 +214,13 @@ Phase rules:
 4. [ ] Parse `event.body`
 5. [ ] If body is empty, load the Phoenix starter scenario
 6. [ ] Validate required fields
-7. [ ] Call `analyzeScenario(payload)`
-8. [ ] Return Netlify-standard JSON response
-9. [ ] Return clear error messages for bad input
-10. [ ] Keep overlay metadata and legend units stable so the frontend does not guess
-11. [ ] Prefer backend-side joins for public datasets instead of direct browser calls
+7. [ ] If corridor geometry is present, enrich segment flood context from FEMA NFHL before analysis
+8. [ ] Call `analyzeScenario(enrichedPayload)`
+9. [ ] Attach live enrichment metadata to the response
+10. [ ] Return Netlify-standard JSON response
+11. [ ] Return clear error messages for bad input
+12. [ ] Keep overlay metadata and legend units stable so the frontend does not guess
+13. [ ] Prefer backend-side joins for public datasets instead of direct browser calls
 
 ## Demo Test
 

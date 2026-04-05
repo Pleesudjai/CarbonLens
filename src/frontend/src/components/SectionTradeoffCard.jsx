@@ -47,6 +47,15 @@ export default function SectionTradeoffCard({ corridorResults }) {
     (sum, corridor) => sum + corridor.segmentResults.filter((segment) => segment.liveContext?.flood && !segment.liveContext.flood.live).length,
     0,
   )
+  const tigerLiveCount = corridorResults.reduce(
+    (sum, corridor) => sum + corridor.segmentResults.filter((segment) => segment.liveContext?.constructability?.live).length,
+    0,
+  )
+  const tigerFallbackCount = corridorResults.reduce(
+    (sum, corridor) =>
+      sum + corridor.segmentResults.filter((segment) => segment.liveContext?.constructability && !segment.liveContext.constructability.live).length,
+    0,
+  )
 
   const insights = []
   const sorted = [...corridorResults].sort((a, b) => a.totals.carbonKgCo2e - b.totals.carbonKgCo2e)
@@ -72,6 +81,32 @@ export default function SectionTradeoffCard({ corridorResults }) {
   const worstBuild = [...corridorResults].sort((a, b) => a.totals.buildabilityScore - b.totals.buildabilityScore)[0]
   if (bestBuild.id !== worstBuild.id) {
     insights.push(`${worstBuild.name} scores lower on buildability due to traffic, utility, or ROW constraints along its corridor.`)
+  }
+
+  // Construction-phase carbon insight
+  const sortedByConstPhase = [...corridorResults].sort((a, b) => a.totals.constructionPhaseCarbonKg - b.totals.constructionPhaseCarbonKg)
+  const lowestConstPhase = sortedByConstPhase[0]
+  const highestConstPhase = sortedByConstPhase[sortedByConstPhase.length - 1]
+  if (lowestConstPhase && highestConstPhase && lowestConstPhase.id !== highestConstPhase.id) {
+    const constPhaseDiff = highestConstPhase.totals.constructionPhaseCarbonKg - lowestConstPhase.totals.constructionPhaseCarbonKg
+    const daysDiff = Math.round(highestConstPhase.totals.durationDays - lowestConstPhase.totals.durationDays)
+    if (constPhaseDiff > 0) {
+      insights.push(
+        `${lowestConstPhase.name} saves ${Math.round(constPhaseDiff / 1000)} tonnes of construction-phase CO2e by building ${daysDiff} fewer days — reducing traffic delays, detours, and equipment emissions.`,
+      )
+    }
+  }
+
+  // Total carbon insight
+  const sortedByTotal = [...corridorResults].sort((a, b) => a.totals.totalCarbonKg - b.totals.totalCarbonKg)
+  const lowestTotal = sortedByTotal[0]
+  const highestTotal = sortedByTotal[sortedByTotal.length - 1]
+  if (lowestTotal && highestTotal && lowestTotal.id !== highestTotal.id) {
+    const totalDiff = highestTotal.totals.totalCarbonKg - lowestTotal.totals.totalCarbonKg
+    const pct = ((totalDiff / highestTotal.totals.totalCarbonKg) * 100).toFixed(0)
+    insights.push(
+      `When construction-phase emissions are included, ${lowestTotal.name} reduces total carbon by ${Math.round(totalDiff / 1000)} tonnes (${pct}%) — embodied material savings are only part of the story.`,
+    )
   }
 
   const lowestPenalty = [...corridorResults].sort((a, b) => a.totals.constructionCarbonPenaltyScore - b.totals.constructionCarbonPenaltyScore)[0]
@@ -111,9 +146,11 @@ export default function SectionTradeoffCard({ corridorResults }) {
       )}
 
       <p className="mt-3 text-[10px] italic text-gray-400">
-        Construction carbon penalty blends structural demand with live FEMA flood context where corridor geometry is available.
+        Construction carbon penalty blends structural demand with live FEMA flood context and live TIGER road-network constructability where corridor geometry is available.
         {floodLiveCount > 0 ? ` ${floodLiveCount} segment${floodLiveCount !== 1 ? 's' : ''} used live FEMA NFHL queries.` : ''}
         {floodFallbackCount > 0 ? ` ${floodFallbackCount} segment${floodFallbackCount !== 1 ? 's' : ''} still rely on scenario fallback.` : ''}
+        {tigerLiveCount > 0 ? ` ${tigerLiveCount} segment${tigerLiveCount !== 1 ? 's' : ''} used live TIGER roadway queries.` : ''}
+        {tigerFallbackCount > 0 ? ` ${tigerFallbackCount} segment${tigerFallbackCount !== 1 ? 's' : ''} still rely on constructability fallback.` : ''}
       </p>
     </div>
   )

@@ -79,6 +79,7 @@ export default function CorridorMap({
       backgroundLayer,
       backgroundData?.layers?.roadCo2Pressure || backgroundData?.layers?.aadt,
       backgroundData?.layers?.modeShiftOpportunity || backgroundData?.layers?.population,
+      backgroundData?.layers?.delayEmissionsHotspots,
     )
   }, [backgroundLayer, backgroundData, city, loaded])
 
@@ -304,6 +305,7 @@ export default function CorridorMap({
         hasData={Boolean(
           backgroundData?.layers?.roadCo2Pressure?.features?.length
             || backgroundData?.layers?.modeShiftOpportunity?.features?.length
+            || backgroundData?.layers?.delayEmissionsHotspots?.features?.length
             || backgroundData?.layers?.aadt?.features?.length
             || backgroundData?.layers?.population?.features?.length,
         )}

@@ -11,6 +11,11 @@ const LEGEND_CONFIG = {
     unitLabel: 'index 0-100',
     colors: ['#fee2e2', '#fca5a5', '#ef4444', '#7f1d1d'],
   },
+  delayEmissionsHotspots: {
+    valueKey: 'delayEmissionsHotspots',
+    unitLabel: 'index 0-100',
+    colors: ['#ede9fe', '#c4b5fd', '#8b5cf6', '#4c1d95'],
+  },
 }
 
 function percentileIndex(values, percentile) {
@@ -66,17 +71,17 @@ export default function BackgroundLayerControl({
         : 'No overlay data is loaded for this city yet.'
 
   return (
-    <div className="absolute left-4 top-20 z-10 max-h-[calc(100%-6rem)] w-72 overflow-y-auto rounded-xl border border-gray-200 bg-white/95 p-3 shadow-lg backdrop-blur-sm">
+    <div className="absolute left-4 top-44 z-10 max-h-[calc(100%-12rem)] w-72 overflow-y-auto rounded-xl border border-gray-200 bg-white/95 p-3 shadow-lg backdrop-blur-sm">
       <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-gray-500">Carbon Overlay</p>
       <p className="mt-1 text-xs font-semibold text-gray-900">{active.label}</p>
       <p className="mt-1 text-[11px] leading-relaxed text-gray-500">{active.description}</p>
 
-      <div className="mt-3 flex flex-wrap gap-2">
+      <div className="mt-3 grid grid-cols-2 gap-2">
         {BACKGROUND_LAYER_OPTIONS.map((option) => (
           <button
             key={option.id}
             onClick={() => onChange(option.id)}
-            className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+            className={`min-h-[2.5rem] rounded-xl px-3 py-2 text-left text-[11px] font-medium leading-tight transition-colors ${
               value === option.id
                 ? 'bg-emerald-600 text-white shadow-sm'
                 : 'border border-gray-200 bg-white text-gray-600 hover:border-gray-300'

@@ -37,6 +37,9 @@ const ROAD_CO2_PRESSURE_POINTS_LAYER = 'background-road-co2-pressure-points'
 const MODE_SHIFT_OPPORTUNITY_SOURCE = 'background-mode-shift-opportunity'
 const MODE_SHIFT_OPPORTUNITY_HEATMAP_LAYER = 'background-mode-shift-opportunity-heatmap'
 const MODE_SHIFT_OPPORTUNITY_POINTS_LAYER = 'background-mode-shift-opportunity-points'
+const DELAY_EMISSIONS_SOURCE = 'background-delay-emissions-hotspots'
+const DELAY_EMISSIONS_HEATMAP_LAYER = 'background-delay-emissions-hotspots-heatmap'
+const DELAY_EMISSIONS_POINTS_LAYER = 'background-delay-emissions-hotspots-points'
 
 function setLayerVisibility(map, layerId, visible) {
   if (map.getLayer(layerId)) {
@@ -158,7 +161,13 @@ export function addExistingTransitStationsLayer(map, geojson) {
   })
 }
 
-export function syncBackgroundOverlay(map, overlayId, roadCo2PressureGeojson, modeShiftOpportunityGeojson) {
+export function syncBackgroundOverlay(
+  map,
+  overlayId,
+  roadCo2PressureGeojson,
+  modeShiftOpportunityGeojson,
+  delayEmissionsGeojson,
+) {
   const beforeId = map.getLayer(EXISTING_TRANSIT_LAYER) ? EXISTING_TRANSIT_LAYER : undefined
 
   ensureGeojsonSource(map, ROAD_CO2_PRESSURE_SOURCE, roadCo2PressureGeojson)
@@ -339,6 +348,95 @@ export function syncBackgroundOverlay(map, overlayId, roadCo2PressureGeojson, mo
     )
   }
 
+  ensureGeojsonSource(map, DELAY_EMISSIONS_SOURCE, delayEmissionsGeojson)
+  if (!map.getLayer(DELAY_EMISSIONS_HEATMAP_LAYER)) {
+    map.addLayer(
+      {
+        id: DELAY_EMISSIONS_HEATMAP_LAYER,
+        type: 'heatmap',
+        source: DELAY_EMISSIONS_SOURCE,
+        layout: { visibility: 'none' },
+        paint: {
+          'heatmap-weight': [
+            'interpolate',
+            ['linear'],
+            ['get', 'intensityNorm'],
+            0, 0,
+            1, 1,
+          ],
+          'heatmap-intensity': [
+            'interpolate',
+            ['linear'],
+            ['zoom'],
+            8, 0.75,
+            11, 1.05,
+            13, 1.3,
+          ],
+          'heatmap-color': [
+            'interpolate',
+            ['linear'],
+            ['heatmap-density'],
+            0, 'rgba(255,255,255,0)',
+            0.16, 'rgba(237,233,254,0.28)',
+            0.38, 'rgba(196,181,253,0.44)',
+            0.62, 'rgba(139,92,246,0.62)',
+            0.84, 'rgba(109,40,217,0.78)',
+            1, 'rgba(76,29,149,0.88)',
+          ],
+          'heatmap-radius': [
+            'interpolate',
+            ['linear'],
+            ['zoom'],
+            8, 18,
+            11, 28,
+            13, 38,
+          ],
+          'heatmap-opacity': 0.72,
+        },
+      },
+      beforeId,
+    )
+  }
+
+  if (!map.getLayer(DELAY_EMISSIONS_POINTS_LAYER)) {
+    map.addLayer(
+      {
+        id: DELAY_EMISSIONS_POINTS_LAYER,
+        type: 'circle',
+        source: DELAY_EMISSIONS_SOURCE,
+        layout: { visibility: 'none' },
+        paint: {
+          'circle-radius': [
+            'interpolate',
+            ['linear'],
+            ['get', 'intensityNorm'],
+            0, 3,
+            1, 9,
+          ],
+          'circle-color': [
+            'interpolate',
+            ['linear'],
+            ['get', 'intensityNorm'],
+            0, '#c4b5fd',
+            0.7, '#8b5cf6',
+            1, '#4c1d95',
+          ],
+          'circle-opacity': [
+            'interpolate',
+            ['linear'],
+            ['zoom'],
+            8, 0.12,
+            11, 0.28,
+            13, 0.52,
+          ],
+          'circle-stroke-color': '#ffffff',
+          'circle-stroke-width': 1,
+        },
+      },
+      beforeId,
+    )
+  }
+
   setLayerVisibility(map, ROAD_CO2_PRESSURE_HEATMAP_LAYER, overlayId === 'roadCo2Pressure' || overlayId === 'aadt')
   setLayerVisibility(map, ROAD_CO2_PRESSURE_POINTS_LAYER, overlayId === 'roadCo2Pressure' || overlayId === 'aadt')
   setLayerVisibility(
@@ -351,6 +449,8 @@ export function syncBackgroundOverlay(map, overlayId, roadCo2PressureGeojson, mo
     MODE_SHIFT_OPPORTUNITY_POINTS_LAYER,
     overlayId === 'modeShiftOpportunity' || overlayId === 'population',
   )
+  setLayerVisibility(map, DELAY_EMISSIONS_HEATMAP_LAYER, overlayId === 'delayEmissionsHotspots')
+  setLayerVisibility(map, DELAY_EMISSIONS_POINTS_LAYER, overlayId === 'delayEmissionsHotspots')
 }
 
 /**

@@ -71,10 +71,23 @@ export const SECTION_FAMILIES = {
 // ─── Material Unit Rates ────────────────────────────────────────────────────
 
 export const MATERIAL_RATES = {
-  rebarKgCo2ePerLb: 0.82,
-  rebarCostPerLb: 0.95,
-  steelFiberKgCo2ePerLb: 1.10,
-  steelFiberCostPerLb: 1.45,
+  rebarKgCo2ePerLb: 0.90,        // ICE v3: 1,990 kg/t / 2,205 lb/t = 0.903
+  rebarCostPerLb: 0.95,           // RS Means 2024
+  steelFiberKgCo2ePerLb: 1.03,    // ICE v3 wire rod: 2,270 kg/t / 2,205 lb/t = 1.030
+  steelFiberCostPerLb: 1.45,      // Industry avg hooked-end macro fiber
+  ppFiberKgCo2ePerLb: 0.91,       // BarChip 48 EPD (S-P-02054): 2,000 kg/t / 2,205 lb/t
+  ppFiberCostPerLb: 0.85,         // Industry avg PP macro fiber
+}
+
+// ─── Construction-Phase Emission Rates ──────────────────────────────────────
+// Traffic delay + detour + equipment emissions during construction
+
+export const CONSTRUCTION_PHASE_RATES = {
+  idleKgCo2PerVehicleHour: 8.16,   // EPA: avg passenger vehicle idle emission
+  detourExtraMiles: 1.5,            // FHWA: typical urban arterial detour
+  detourKgCo2PerMile: 0.404,        // EPA: avg passenger vehicle per mile
+  avgDelayHoursPerVehicle: 0.05,     // FHWA: 3 minutes average work-zone delay
+  equipmentKgCo2PerDay: 2500,        // Industry avg for LRT construction equipment
 }
 
 // ─── Segment Type Factors ───────────────────────────────────────────────────

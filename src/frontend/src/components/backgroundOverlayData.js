@@ -12,6 +12,11 @@ export const BACKGROUND_LAYER_OPTIONS = [
     label: 'Mode-Shift Opportunity',
     description: 'Where rail could replace the most car trips, combining population concentration and fixed-guideway transit gap.',
   },
+  {
+    id: 'delayEmissionsHotspots',
+    label: 'Delay Emissions Hotspots',
+    description: 'Where heavy traffic and complex road-network conditions likely create stop-and-go emissions pressure.',
+  },
 ]
 
 function withLegacyLayerAliases(layers) {
@@ -28,12 +33,13 @@ export function getEmptyBackgroundOverlayData(city, sourceSummary = 'Live overla
     meta: {
       mode: 'empty',
       fetchedAt: new Date().toISOString(),
-      overlayVersion: 'carbon-v1',
+      overlayVersion: 'carbon-v2',
       sourceSummary,
     },
     layers: withLegacyLayerAliases({
       roadCo2Pressure: EMPTY_FEATURE_COLLECTION,
       modeShiftOpportunity: EMPTY_FEATURE_COLLECTION,
+      delayEmissionsHotspots: EMPTY_FEATURE_COLLECTION,
     }),
   }
 }
@@ -143,6 +149,7 @@ export function mergeBackgroundOverlayData(primary, fallback = null) {
   const empty = fallback || getEmptyBackgroundOverlayData(primary?.cityId || 'phoenix')
   const roadCo2Pressure = primary?.layers?.roadCo2Pressure || primary?.layers?.aadt || EMPTY_FEATURE_COLLECTION
   const modeShiftOpportunity = primary?.layers?.modeShiftOpportunity || primary?.layers?.population || EMPTY_FEATURE_COLLECTION
+  const delayEmissionsHotspots = primary?.layers?.delayEmissionsHotspots || EMPTY_FEATURE_COLLECTION
 
   return {
     cityId: primary?.cityId || empty.cityId,
@@ -153,6 +160,7 @@ export function mergeBackgroundOverlayData(primary, fallback = null) {
     layers: withLegacyLayerAliases({
       roadCo2Pressure,
       modeShiftOpportunity,
+      delayEmissionsHotspots,
     }),
   }
 }
