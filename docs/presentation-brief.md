@@ -2,6 +2,12 @@
 
 This note is written for a teammate who needs to present the project clearly at the hackathon.
 
+## Key Message
+
+- Real climate impact in transportation has to start at the `community` level, not only at the individual level.
+- This project focuses on `system-scale change` by helping cities choose better corridor designs, not just asking one person to change behavior.
+- CarbonLens is about designing better public infrastructure so lower-carbon choices become easier for the whole community.
+
 ## 1. Public APIs and External Data Sources Used
 
 ### A. Live public data APIs used by the app
@@ -199,7 +205,7 @@ After analysis:
 
 ### The main impact
 
-This project helps planners compare transit corridor options with a carbon-first, engineering-aware workflow instead of relying only on rough intuition.
+This project helps planners compare transit corridor options with a carbon-first, engineering-aware workflow instead of relying only on rough intuition. Its bigger message is that transportation change should start with better community infrastructure, not only individual choices.
 
 ### Why it is valuable
 
@@ -230,7 +236,7 @@ This project helps planners compare transit corridor options with a carbon-first
 
 ### One-sentence hackathon impact statement
 
-`CarbonLens helps cities design lower-carbon transit corridors faster by combining live public data, deterministic engineering analysis, and audience-specific decision support in one map-based workflow.`
+`CarbonLens helps cities design lower-carbon transit corridors faster by combining live public data, deterministic engineering analysis, and audience-specific decision support in one map-based workflow, because real transportation change starts at the community level.`
 
 ### Short presentation takeaway
 
@@ -243,3 +249,6 @@ It is:
 - a public-data decision support system
 - and a communication tool for planners, engineers, contractors, and communities
 
+### Strong closing line for the presentation
+
+`This project is important because lasting transportation change does not start with one person. It starts with community-level infrastructure decisions that shape how everyone travels.`

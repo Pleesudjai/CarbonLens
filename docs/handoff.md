@@ -1,78 +1,90 @@
 # Session Handoff
-Date: 2026-04-04 (Day 1, evening)
-Focus: Project scaffold, WISC setup, product pivot to GreenRoute Transit, spec writing, reference docs
+Date: 2026-04-05 (Day 2, evening)
+Focus: Netlify deployment, build fixes, live data fallback, Claude AI advisor activation
 
 ## Completed
-- Initial project scaffold (React 18 + Vite 5 + Tailwind 3 + Netlify Functions)
-- `.claude/commands/` — all 5 WISC commands (commit, execute, handoff, plan-feature, prime)
-- `.claude/rules/` — 3 domain rules with `paths:` frontmatter (frontend, backend, gee-layer)
-- `.claude/docs/valley-metro-frc-case-study.md` — cross-checked with NotebookLM, comprehensive
-- `Github_repo/repo_pool.md` — 15+ repos researched and ranked for sustainability track
-- `Github_repo/README.md` — shortlist and product direction combos
-- Product pivot from generic supply chain → **GreenRoute Transit** (Embodied Carbon Transit Design Assistant)
-- `CLAUDE.md` — fully updated with active product scope, tech stack, WISC framework, modeling guidance
-- All slash commands updated to reflect transit concept
-- `docs/decisions.md` — initialized with scaffold and research decisions
-- 5 specs written in `specs/`:
-  1. `transit-carbon-assistant-product-spec.md` — product definition
-  2. `transit-analysis-engine.md` — deterministic scoring logic
-  3. `transit-analysis-api.md` — Netlify function contract
-  4. `transit-map-scenario-builder.md` — MapLibre corridor builder
-  5. `transit-results-dashboard.md` — comparison charts and recommendations
-- `specs/README.md` — read order, execution order, success criteria
+- Committed large uncommitted batch (38 files, 3,479 insertions): report view, AI advisor, lens recommendations, metric tooltips, section figures, lazy loading, error boundary
+- Fixed Vite production build — replaced broken inline `import('/src/main.jsx')` with standard `<script type="module">` tag
+- Pre-computed Phoenix overlay data (4.5 MB static JSON with 6,656 features) as fallback for Netlify's 10-second function timeout
+- Updated `api.js` to silently fall back to `/overlays/phoenix.json` when the live API returns 502
+- Fixed Netlify build command to install function dependencies (`cd netlify/functions && npm install`)
+- Added `[functions]` config to `netlify.toml` with esbuild bundler and `included_files` for `src/shared/`
+- Fixed Claude AI advisor model ID — cycled through retired models until landing on `claude-haiku-4-5-20251001`
+- Pushed to GitHub (Pleesudjai/CarbonLens) — 8 commits this session
+- Netlify site is live and fully functional
 
 ## Current State
 ### Working end-to-end
-- Project scaffold boots (`npm run dev` in src/frontend should work after `npm install`)
-- Placeholder App.jsx renders GreenRoute Transit header and build focus list
+- Map workspace with MapLibre (Carto Voyager light theme)
+- Corridor drawing (click-to-draw with haversine measurement)
+- Sidebar with corridor panel + segment editor + planning factors + community factors
+- Background data overlays: Road CO2 Pressure, Mode-Shift Opportunity, Delay Emissions Hotspots (via pre-computed fallback)
+- Segment preview auto-population from background overlay data (AADT, population, jobs, transit connectivity)
+- Deterministic analysis engine (7 metrics: carbon, cost, duration, disruption, maintenance, buildability, community)
+- Construction-phase carbon (traffic idle + detour + equipment emissions)
+- 3 stakeholder lenses (Planner / Contractor / Community) with weighted recommendation scoring
+- Recommendation panel with category badges
+- Claude AI advisor narrative (summary, construction insight, risks, next steps)
+- Results summary table with metric hover tooltips
+- Corridor comparison charts (bar + radar)
+- Segment breakdown table
+- Section tradeoff card with engineering insights
+- Report view toggle (clean read-only layout)
+- Resizable map/results split panel
+- Lazy loading for heavy components
+- Error boundary with boot screen
+- Live FEMA Flood + TIGER Roads enrichment
 
 ### Built but untested
-- Nothing beyond scaffold — no analysis engine, API, or components yet
+- Seattle and Portland city presets (geometry exists, no pre-computed overlay data)
+- CommunityImpactNote component (exists but may not be rendered in current layout)
 
 ### Broken / Incomplete
-- No components in `src/frontend/src/components/` yet
-- No analysis modules in `src/backend/analysis/` yet
-- No Netlify functions beyond `package.json`
-- Git has 1 commit; all subsequent changes (WISC upgrade, product pivot, specs, docs) are uncommitted
+- App.jsx is 977 lines (should be <150 per coding standards) — works but is a maintenance risk
+- SectionTradeoffCard.jsx (427 lines) and SegmentEditor.jsx (362 lines) also over limit
+- `docs/handoff.md` and `docs/decisions.md` were stale until this update
+- Netlify build credits are limited — avoid unnecessary redeploys
+- `presentation-brief.md` has uncommitted changes
 
 ## Next Steps (priority order)
-1. **Commit all current work** — large uncommitted diff covering the full product pivot
-2. **Execute `specs/transit-analysis-engine.md`** — build the deterministic scoring module first (it defines the payload/schema everything else depends on)
-3. **Execute `specs/transit-analysis-api.md`** — wire the engine to a Netlify function
-4. **Execute `specs/transit-map-scenario-builder.md`** — MapLibre corridor drawing + city presets
-5. **Execute `specs/transit-results-dashboard.md`** — comparison charts, rankings, recommendations
+1. **Demo rehearsal** — follow the 2-minute demo script in `docs/top-5-actions-before-judging.md`
+2. **Presentation slides** — finalize for judging (check `docs/presentation-brief.md`)
+3. **App.jsx decomposition** — extract geometry helpers, state management, and report view into separate files (code quality for judges who may glance at repo)
+4. **Add 2nd/3rd corridor presets** — demo is stronger when corridors have different winners per category (currently Alt A wins everything)
+5. **Commit remaining changes** — `presentation-brief.md` and any other loose files
 
 ## Deploy Status
-- Netlify live: not deployed yet
-- API keys set in Netlify: [ ] no
-- Last successful deploy: none
+- Netlify live: https://regal-faloodeh-9fd58e.netlify.app/
+- GitHub repo: https://github.com/Pleesudjai/CarbonLens
+- API keys set in Netlify: [x] ANTHROPIC_API_KEY (claude-haiku-4-5-20251001)
+- Last successful deploy: 2026-04-05 (commit 707f4e8)
+- Netlify build credits: LIMITED — minimize redeploys
 
 ## Open Questions / Blockers
-- [ ] Team composition — who else is working on this?
-- [ ] GitHub repo — need to create and push
-- [ ] Netlify site — need to create for deployment
-- [ ] Phoenix corridor data — are there specific corridor alternatives to preset?
+- [ ] Devansh may have a different Anthropic API key — check if newer models (Sonnet 4.5/4.6) are accessible
+- [ ] Netlify free tier credits are running low — consider whether remaining deploys are needed
+- [ ] Demo scenario tuning — current Phoenix preset has Alt A winning every category; more interesting demo if corridors have different strengths
 
 ## Files Modified This Session
-- `CLAUDE.md` — full rewrite for GreenRoute Transit product
-- `package.json` — updated name/description
-- `src/frontend/index.html` — updated title
-- `src/frontend/src/App.jsx` — updated to transit design assistant layout
-- `src/frontend/src/api.js` — renamed to `analyzeScenario`, added backward-compat alias
-- `.claude/commands/*.md` — all 5 updated for transit concept
-- `.claude/rules/*.md` — all 3 updated with `paths:` frontmatter
-- `.claude/docs/valley-metro-frc-case-study.md` — NEW: FRC case study (cross-checked with NotebookLM)
-- `docs/decisions.md` — NEW: initialized
-- `Github_repo/README.md` — NEW: repo research shortlist
-- `Github_repo/repo_pool.md` — NEW: 15+ repo cards
-- `specs/README.md` — NEW: execution order and success criteria
-- `specs/transit-carbon-assistant-product-spec.md` — NEW
-- `specs/transit-analysis-engine.md` — NEW
-- `specs/transit-analysis-api.md` — NEW
-- `specs/transit-map-scenario-builder.md` — NEW
-- `specs/transit-results-dashboard.md` — NEW
+- `src/frontend/index.html` — replaced inline dynamic import with script module tag
+- `src/frontend/src/api.js` — added static fallback for background overlays
+- `src/frontend/src/App.jsx` — committed prior session's large rewrite (report view, resize, geometry, preview)
+- `src/frontend/src/main.jsx` — committed error boundary and boot screen
+- `src/frontend/src/recommendationUtils.js` — NEW: lens-aware weighted recommendation engine
+- `src/frontend/src/components/StructureCarbonBar.jsx` — NEW: stacked embodied+construction carbon bar
+- `src/frontend/src/components/*.jsx` — all components updated (report view, tooltips, lens support)
+- `src/frontend/public/overlays/phoenix.json` — NEW: pre-computed 4.5 MB overlay data
+- `netlify/functions/ai-corridor-advisor.js` — NEW: Claude-powered narrative advisor
+- `netlify/functions/background-overlays.js` — updated overlay logic
+- `netlify.toml` — added function dep install, esbuild bundler config
+- `scripts/precompute-overlays.js` — NEW: script to regenerate static overlay data
+- `docs/top-5-actions-before-judging.md` — NEW: demo prep checklist
+- `docs/winning-checklist.md` — NEW: judge-facing readiness checklist
+- `docs/presentation-brief.md` — NEW: presentation outline
+- `specs/carbon-calculation-cross-check.md` — NEW: carbon formula verification
+- `pics/` and `src/frontend/public/section-figures/` — FRC and RC cross-section images
 
 ## Context for Next Session
-The product direction is locked: GreenRoute Transit — an Embodied Carbon Transit Design Assistant grounded in real civil engineering knowledge (Valley Metro FRC case study, slab optimization, buildability). All 5 specs are written and ordered. The scaffold is up but no functional code exists yet. The single most important next action is to commit the current state, then start executing specs in order (engine → API → map → dashboard). The team's strongest differentiator is real structural engineering expertise — make sure that shows in the section comparison logic.
+The app is live, fully functional, and demo-ready at https://regal-faloodeh-9fd58e.netlify.app/. The strongest demo move is to tune the Phoenix scenario so different corridors win different categories (carbon vs. cost vs. community benefit) — right now Alt A sweeps everything which undersells the tradeoff analysis. The Claude AI advisor is working with Haiku 4.5. Netlify credits are limited so batch any remaining changes into a single push.
 
-**Recommended first action:** Run `/commit` to save all current work, then open a fresh session and run `/execute specs/transit-analysis-engine.md`.
+**Recommended first action:** Run `/prime`, then tune the default Phoenix scenario presets so Alt A, Alt B, and Alt C each have different strengths.
