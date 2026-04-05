@@ -35,14 +35,15 @@ export async function analyzePreset() {
  * @returns {Promise<object>}
  */
 export async function getBackgroundOverlays(cityId = 'phoenix') {
-  const res = await fetch(`${API_BASE}/background-overlays?city=${encodeURIComponent(cityId)}&refresh=1`)
+  try {
+    const res = await fetch(`${API_BASE}/background-overlays?city=${encodeURIComponent(cityId)}&refresh=1`)
+    if (res.ok) return res.json()
+  } catch { /* fall through to static fallback */ }
 
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }))
-    throw new Error(err.message || err.error || `API error: ${res.status}`)
-  }
+  const fallback = await fetch(`/overlays/${encodeURIComponent(cityId)}.json`)
+  if (fallback.ok) return fallback.json()
 
-  return res.json()
+  throw new Error('Background overlays unavailable from both API and static fallback.')
 }
 
 /**
