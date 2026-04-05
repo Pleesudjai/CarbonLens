@@ -166,7 +166,8 @@ The app runs at `http://localhost:8888`.
 
 ## Team
 
-Built by ASU students at Innovation Hacks 2.0.
+- **Chidchanok Pleesudjai** — PhD Student, Arizona State University
+- **Devansh** — PhD Student, Arizona State University
 
 ## License
 
