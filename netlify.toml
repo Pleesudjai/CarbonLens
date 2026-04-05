@@ -1,7 +1,11 @@
 [build]
-  command = "cd src/frontend && npm install && npm run build"
+  command = "cd netlify/functions && npm install && cd ../../src/frontend && npm install && npm run build"
   publish = "src/frontend/dist"
   functions = "netlify/functions"
+
+[functions]
+  node_bundler = "esbuild"
+  included_files = ["src/shared/**"]
 
 [dev]
   command = "npm --prefix src/frontend run dev"
