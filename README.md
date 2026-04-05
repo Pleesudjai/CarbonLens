@@ -166,8 +166,8 @@ The app runs at `http://localhost:8888`.
 
 ## Team
 
-- **Chidchanok Pleesudjai** — PhD Student, Arizona State University
-- **Devansh** — PhD Student, Arizona State University
+- **[Chidchanok Pleesudjai](https://www.linkedin.com/in/chidchanokp/)** — PhD Student, Civil, Environmental & Sustainable Engineering, Arizona State University. Research focus: fiber-reinforced concrete, hybrid reinforced systems, pavement design. Bridge Design Engineer at Thai Ministry of Transport.
+- **[Devansh Patel](https://www.linkedin.com/in/devanshpatl/)** — PhD Student, Civil Engineering, Arizona State University. Research focus: FRC/UHPC characterization, inverse analysis, precast tunnel lining design. Licensed Structural Engineer (FE, Arizona).
 
 ## License
 
