@@ -44,13 +44,12 @@ Each segment computes concrete volume from slab thickness and width, then adds r
 |---|---|---|---|---|---|
 | Conventional RC | 14 in | 240 lb/cy | — | Standard (15% SCM) | 35 lf/day |
 | Fiber Reinforced (FRC) | 12 in | — | 60 lb/cy | Fiber Mix (15% SCM) | 55 lf/day |
-| Low-Cement SCM-Rich | 14 in | 240 lb/cy | — | Low-Carbon (35% SCM) | 32 lf/day |
 
 Material emission factors (ICE v3):
 - Rebar: 0.90 kg CO₂e/lb
 - Steel fiber: 1.03 kg CO₂e/lb
 - Standard concrete: 290 kg CO₂e/cy
-- Low-carbon concrete: 210 kg CO₂e/cy
+- Fiber mix concrete: 275 kg CO₂e/cy
 
 ### During-Build Carbon
 
