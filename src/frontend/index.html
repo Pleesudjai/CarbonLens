@@ -25,35 +25,6 @@
         </div>
       </div>
     </div>
-    <script>
-      ;(() => {
-        const status = document.getElementById('boot-status')
-        const message = document.getElementById('boot-message')
-        const details = document.getElementById('boot-details')
-
-        if (status) status.textContent = 'Booting'
-        if (details) details.textContent = 'Loading frontend entry module...'
-
-        import('/src/main.jsx')
-          .then(() => {
-            if (details) details.textContent = 'Frontend entry module loaded.'
-          })
-          .catch((error) => {
-            if (status) {
-              status.textContent = 'Load Error'
-              status.style.color = '#dc2626'
-            }
-            if (message) {
-              message.textContent = 'CarbonLens could not load the frontend entry module. The exact startup error is shown below.'
-            }
-            if (details) {
-              details.textContent = String(error && (error.stack || error.message || error))
-              details.style.whiteSpace = 'pre-wrap'
-              details.style.color = '#991b1b'
-            }
-            console.error('CarbonLens index bootstrap error', error)
-          })
-      })()
-    </script>
+    <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
