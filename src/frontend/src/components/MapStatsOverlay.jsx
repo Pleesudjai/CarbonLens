@@ -9,6 +9,7 @@ export default function MapStatsOverlay({ corridorResults, activeCorridorId }) {
     { label: 'Carbon', value: `${Math.round(t.carbonKgCo2e / 1000)} t CO2e` },
     { label: 'Cost', value: `$${(t.costUsd / 1e6).toFixed(2)}M` },
     { label: 'Buildability', value: `${t.buildabilityScore.toFixed(1)} / 10` },
+    { label: 'Build Carbon', value: `${t.constructionCarbonPenaltyScore.toFixed(1)} / 10` },
   ]
 
   return (

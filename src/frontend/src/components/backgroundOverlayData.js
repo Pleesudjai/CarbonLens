@@ -2,9 +2,41 @@ const EMPTY_FEATURE_COLLECTION = { type: 'FeatureCollection', features: [] }
 
 export const BACKGROUND_LAYER_OPTIONS = [
   { id: 'none', label: 'None', description: 'Base map only' },
-  { id: 'aadt', label: 'AADT Gradient', description: 'Traffic-volume clustering from the live ADOT feed' },
-  { id: 'population', label: 'Population Gradient', description: 'Population concentration from the live Census geography feed' },
+  {
+    id: 'roadCo2Pressure',
+    label: 'Road CO2 Pressure',
+    description: 'Current roadway operating-emissions pressure, proxied by live ADOT traffic counts.',
+  },
+  {
+    id: 'modeShiftOpportunity',
+    label: 'Mode-Shift Opportunity',
+    description: 'Where rail could replace the most car trips, combining population concentration and fixed-guideway transit gap.',
+  },
 ]
+
+function withLegacyLayerAliases(layers) {
+  return {
+    ...layers,
+    aadt: layers.roadCo2Pressure || EMPTY_FEATURE_COLLECTION,
+    population: layers.modeShiftOpportunity || EMPTY_FEATURE_COLLECTION,
+  }
+}
+
+export function getEmptyBackgroundOverlayData(city, sourceSummary = 'Live overlay data has not loaded yet.') {
+  return {
+    cityId: city,
+    meta: {
+      mode: 'empty',
+      fetchedAt: new Date().toISOString(),
+      overlayVersion: 'carbon-v1',
+      sourceSummary,
+    },
+    layers: withLegacyLayerAliases({
+      roadCo2Pressure: EMPTY_FEATURE_COLLECTION,
+      modeShiftOpportunity: EMPTY_FEATURE_COLLECTION,
+    }),
+  }
+}
 
 const PHOENIX_AADT_SEGMENTS = [
   { name: 'I-17', aadt: 188000, coordinates: [[-112.132, 33.534], [-112.123, 33.498], [-112.117, 33.459], [-112.111, 33.432]] },
@@ -22,22 +54,22 @@ const PHOENIX_AADT_SEGMENTS = [
 ]
 
 const PHOENIX_POPULATION_POINTS = [
-  { name: 'Downtown Core', coordinates: [-112.074, 33.448], population: 9.5 },
-  { name: 'Roosevelt', coordinates: [-112.077, 33.459], population: 8.7 },
-  { name: 'Midtown', coordinates: [-112.074, 33.492], population: 8.1 },
-  { name: 'Uptown', coordinates: [-112.074, 33.509], population: 7.4 },
-  { name: 'Encanto', coordinates: [-112.094, 33.473], population: 7.3 },
-  { name: 'West Thomas', coordinates: [-112.121, 33.48], population: 8.1 },
-  { name: 'West Camelback', coordinates: [-112.118, 33.509], population: 7.2 },
-  { name: 'South Phoenix', coordinates: [-112.074, 33.405], population: 8.6 },
-  { name: 'Maryvale Edge', coordinates: [-112.162, 33.48], population: 6.9 },
-  { name: 'Airport Gateway', coordinates: [-112.002, 33.435], population: 5.8 },
-  { name: '44th Street', coordinates: [-111.986, 33.449], population: 6.5 },
-  { name: 'Tempe Town Lake', coordinates: [-111.94, 33.434], population: 7.4 },
-  { name: 'ASU Tempe', coordinates: [-111.937, 33.421], population: 9.8 },
-  { name: 'Mill Avenue', coordinates: [-111.94, 33.426], population: 8.8 },
-  { name: 'Mesa Main Street', coordinates: [-111.83, 33.414], population: 7.1 },
-  { name: 'North Central Housing', coordinates: [-112.074, 33.53], population: 6.8 },
+  { name: 'Downtown Core', coordinates: [-112.074, 33.448], population: 9.5, jobs: 10 },
+  { name: 'Roosevelt', coordinates: [-112.077, 33.459], population: 8.7, jobs: 7.6 },
+  { name: 'Midtown', coordinates: [-112.074, 33.492], population: 8.1, jobs: 7.2 },
+  { name: 'Uptown', coordinates: [-112.074, 33.509], population: 7.4, jobs: 6.2 },
+  { name: 'Encanto', coordinates: [-112.094, 33.473], population: 7.3, jobs: 5.4 },
+  { name: 'West Thomas', coordinates: [-112.121, 33.48], population: 8.1, jobs: 4.8 },
+  { name: 'West Camelback', coordinates: [-112.118, 33.509], population: 7.2, jobs: 4.6 },
+  { name: 'South Phoenix', coordinates: [-112.074, 33.405], population: 8.6, jobs: 4.3 },
+  { name: 'Maryvale Edge', coordinates: [-112.162, 33.48], population: 6.9, jobs: 3.8 },
+  { name: 'Airport Gateway', coordinates: [-112.002, 33.435], population: 5.8, jobs: 8.8 },
+  { name: '44th Street', coordinates: [-111.986, 33.449], population: 6.5, jobs: 6.7 },
+  { name: 'Tempe Town Lake', coordinates: [-111.94, 33.434], population: 7.4, jobs: 7.8 },
+  { name: 'ASU Tempe', coordinates: [-111.937, 33.421], population: 9.8, jobs: 9.2 },
+  { name: 'Mill Avenue', coordinates: [-111.94, 33.426], population: 8.8, jobs: 8.4 },
+  { name: 'Mesa Main Street', coordinates: [-111.83, 33.414], population: 7.1, jobs: 5.7 },
+  { name: 'North Central Housing', coordinates: [-112.074, 33.53], population: 6.8, jobs: 4.9 },
 ]
 
 function sampleLinePoints(row, samplesPerSegment = 6) {
@@ -85,6 +117,7 @@ function toAadtPointFeatureCollection(rows) {
 
 function toPopulationPointFeatureCollection(rows) {
   const max = Math.max(...rows.map((row) => row.population))
+  const maxJobs = Math.max(...rows.map((row) => row.jobs || 0), 1)
   return {
     type: 'FeatureCollection',
     features: rows.map((row) => ({
@@ -92,7 +125,10 @@ function toPopulationPointFeatureCollection(rows) {
       geometry: { type: 'Point', coordinates: row.coordinates },
       properties: {
         name: row.name,
+        geoid: row.name,
         population: row.population,
+        jobs: row.jobs || 0,
+        jobsNorm: (row.jobs || 0) / maxJobs,
         intensityNorm: row.population / max,
       },
     })),
@@ -100,57 +136,23 @@ function toPopulationPointFeatureCollection(rows) {
 }
 
 export function getBackgroundOverlayFallback(city) {
-  if (city !== 'phoenix') {
-    return {
-      cityId: city,
-      meta: {
-        mode: 'fallback',
-        fetchedAt: new Date().toISOString(),
-        sourceSummary: 'No built-in fallback snapshot available for this city.',
-      },
-      layers: {
-        aadt: EMPTY_FEATURE_COLLECTION,
-        population: EMPTY_FEATURE_COLLECTION,
-      },
-    }
-  }
-
-  return {
-    cityId: city,
-    meta: {
-      mode: 'fallback',
-      fetchedAt: new Date().toISOString(),
-      sourceSummary: 'Using the built-in Phoenix fallback snapshot while live public data loads.',
-    },
-    layers: {
-      aadt: toAadtPointFeatureCollection(PHOENIX_AADT_SEGMENTS),
-      population: toPopulationPointFeatureCollection(PHOENIX_POPULATION_POINTS),
-    },
-  }
+  return getEmptyBackgroundOverlayData(city, 'Fallback demo overlay data is disabled. Waiting for live public data.')
 }
 
-export function mergeBackgroundOverlayData(primary, fallback) {
-  const primaryAadtCount = primary?.layers?.aadt?.features?.length || 0
-  const primaryPopulationCount = primary?.layers?.population?.features?.length || 0
+export function mergeBackgroundOverlayData(primary, fallback = null) {
+  const empty = fallback || getEmptyBackgroundOverlayData(primary?.cityId || 'phoenix')
+  const roadCo2Pressure = primary?.layers?.roadCo2Pressure || primary?.layers?.aadt || EMPTY_FEATURE_COLLECTION
+  const modeShiftOpportunity = primary?.layers?.modeShiftOpportunity || primary?.layers?.population || EMPTY_FEATURE_COLLECTION
 
-  const merged = {
-    cityId: primary?.cityId || fallback?.cityId,
+  return {
+    cityId: primary?.cityId || empty.cityId,
     meta: {
-      ...(fallback?.meta || {}),
+      ...(empty.meta || {}),
       ...(primary?.meta || {}),
     },
-    layers: {
-      aadt: primaryAadtCount > 0 ? primary.layers.aadt : fallback?.layers?.aadt || EMPTY_FEATURE_COLLECTION,
-      population:
-        primaryPopulationCount > 0
-          ? primary.layers.population
-          : fallback?.layers?.population || EMPTY_FEATURE_COLLECTION,
-    },
+    layers: withLegacyLayerAliases({
+      roadCo2Pressure,
+      modeShiftOpportunity,
+    }),
   }
-
-  if (primaryAadtCount === 0 && primaryPopulationCount > 0) {
-    merged.meta.sourceSummary = `${primary?.meta?.sourceSummary || 'Live data loaded.'} AADT is temporarily using the local fallback snapshot because the live traffic payload came back empty.`
-  }
-
-  return merged
 }

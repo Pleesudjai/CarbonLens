@@ -13,7 +13,7 @@ import CorridorComparisonChart from './components/CorridorComparisonChart'
 import SegmentBreakdownTable from './components/SegmentBreakdownTable'
 import SectionTradeoffCard from './components/SectionTradeoffCard'
 import CommunityImpactNote from './components/CommunityImpactNote'
-import { getBackgroundOverlayFallback, mergeBackgroundOverlayData } from './components/backgroundOverlayData'
+import { getEmptyBackgroundOverlayData, mergeBackgroundOverlayData } from './components/backgroundOverlayData'
 import { createDefaultScenario, corridorGeojson, hasPresetGeometry } from './components/defaultScenario'
 import { analyzeScenario, getBackgroundOverlays } from './api'
 
@@ -27,14 +27,15 @@ function App() {
   const [error, setError] = useState(null)
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [lens, setLens] = useState('planner')
-  const [backgroundLayer, setBackgroundLayer] = useState('population')
-  const [backgroundData, setBackgroundData] = useState(() => getBackgroundOverlayFallback('phoenix'))
+  const [backgroundLayer, setBackgroundLayer] = useState('modeShiftOpportunity')
+  const [backgroundData, setBackgroundData] = useState(() => getEmptyBackgroundOverlayData('phoenix'))
   const [backgroundLoading, setBackgroundLoading] = useState(false)
   const [backgroundError, setBackgroundError] = useState(null)
   const [drawMode, setDrawMode] = useState(false)
   const [customLines, setCustomLines] = useState({})
-
   const city = scenario.cityId
+  const mapCorridors = scenario.corridors.map((c) => ({ id: c.id, geojson: customLines[c.id] || corridorGeojson(c.id, city) }))
+
   const handleCityChange = useCallback((cityId) => {
     setScenario(createDefaultScenario(cityId))
     setActiveCorridorId('alt-a')
@@ -43,19 +44,19 @@ function App() {
 
   useEffect(() => {
     let cancelled = false
-    const fallback = getBackgroundOverlayFallback(city)
-    setBackgroundData(fallback)
+    const emptyState = getEmptyBackgroundOverlayData(city)
+    setBackgroundData(emptyState)
     setBackgroundLoading(true)
     setBackgroundError(null)
 
     getBackgroundOverlays(city)
       .then((data) => {
-        if (!cancelled) setBackgroundData(mergeBackgroundOverlayData(data, fallback))
+        if (!cancelled) setBackgroundData(mergeBackgroundOverlayData(data, emptyState))
       })
       .catch((err) => {
         if (!cancelled) {
           setBackgroundError(err.message)
-          setBackgroundData(fallback)
+          setBackgroundData(getEmptyBackgroundOverlayData(city, 'Live public overlay data is unavailable right now.'))
         }
       })
       .finally(() => {
@@ -102,14 +103,24 @@ function App() {
     updateScenario((cs) => cs.map((c) => c.id !== corridorId ? c : { ...c, segments: c.segments.filter((s) => s.id !== segId) }))
 
   const handleAnalyze = async () => {
+    const geometryByCorridorId = Object.fromEntries(
+      mapCorridors.map((corridor) => [corridor.id, corridor.geojson?.features?.[0]?.geometry || null]),
+    )
+    const payload = {
+      ...scenario,
+      corridors: scenario.corridors.map((corridor) => ({
+        ...corridor,
+        geometry: geometryByCorridorId[corridor.id] || corridor.geometry || null,
+      })),
+    }
+
     setLoading(true); setError(null)
-    try { setResults(await analyzeScenario(scenario)) }
+    try { setResults(await analyzeScenario(payload)) }
     catch (e) { setError(e.message) }
     finally { setLoading(false) }
   }
 
   const activeCorridor = scenario.corridors.find((c) => c.id === activeCorridorId)
-  const mapCorridors = scenario.corridors.map((c) => ({ id: c.id, geojson: customLines[c.id] || corridorGeojson(c.id, city) }))
   const handleDrawComplete = (geojson) => {
     setCustomLines((prev) => ({ ...prev, [activeCorridorId]: geojson }))
     setDrawMode(false)
@@ -122,8 +133,8 @@ function App() {
       <Header city={city} onCityChange={handleCityChange} sidebarOpen={sidebarOpen} onToggleSidebar={() => setSidebarOpen((s) => !s)} />
 
       <div className="flex flex-1 overflow-hidden">
-        <div className="flex flex-1 flex-col overflow-y-auto">
-          <div className="relative" style={{ minHeight: results ? 320 : 500 }}>
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+          <div className={results ? 'relative min-h-[320px]' : 'relative min-h-[500px] flex-1'}>
             <CorridorMap
               city={city}
               corridors={mapCorridors}

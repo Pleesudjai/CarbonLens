@@ -4,6 +4,7 @@ const BADGES = [
   { key: 'lowestCostId', label: 'Lowest Cost', color: 'bg-blue-600' },
   { key: 'fastestId', label: 'Fastest Build', color: 'bg-violet-600' },
   { key: 'lowestDisruptionId', label: 'Lowest Disruption', color: 'bg-amber-600' },
+  { key: 'lowestConstructionPenaltyId', label: 'Lowest Build Carbon', color: 'bg-slate-700' },
   { key: 'highestCommunityBenefitId', label: 'Community Benefit', color: 'bg-rose-600' },
 ]
 

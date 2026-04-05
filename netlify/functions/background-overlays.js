@@ -1,4 +1,6 @@
 import * as XLSX from 'xlsx'
+import { gunzipSync } from 'node:zlib'
+import { buildModeShiftOpportunityLayer } from '../../src/shared/fixedGuidewayAnchors.js'
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -40,6 +42,18 @@ function pickFirstWorkbookUrl(html) {
   return normalizeUrl(matches[0][1])
 }
 
+function pickLatestArizonaLodesWacUrl(html) {
+  const matches = [...html.matchAll(/href="(az_wac_S000_JT00_(\d{4})\.csv\.gz)"/gi)]
+  if (!matches.length) return null
+
+  const latest = matches
+    .map((match) => ({ href: match[1], year: Number(match[2]) }))
+    .filter((item) => Number.isFinite(item.year))
+    .sort((a, b) => b.year - a.year)[0]
+
+  return latest ? `https://lehd.ces.census.gov/data/lodes/LODES8/az/wac/${latest.href}` : null
+}
+
 function getRowValue(row, keys) {
   for (const key of keys) {
     if (row[key] !== undefined && row[key] !== null && row[key] !== '') return row[key]
@@ -54,6 +68,15 @@ async function getLatestAadtWorkbookUrl() {
   const workbookUrl = pickFirstWorkbookUrl(html)
   if (!workbookUrl) throw new Error('Could not find the latest ADOT AADT workbook link')
   return workbookUrl
+}
+
+async function getLatestArizonaJobsUrl() {
+  const res = await fetch('https://lehd.ces.census.gov/data/lodes/LODES8/az/wac/')
+  if (!res.ok) throw new Error(`LODES directory listing failed: ${res.status}`)
+  const html = await res.text()
+  const jobsUrl = pickLatestArizonaLodesWacUrl(html)
+  if (!jobsUrl) throw new Error('Could not find the latest Arizona LODES WAC file')
+  return jobsUrl
 }
 
 async function loadAadtWorkbookMap(workbookUrl) {
@@ -169,6 +192,53 @@ function buildAadtOverlay(geometryFeatures, workbookMap) {
   }
 }
 
+async function loadArizonaJobsByBlockGroup(blockGroupIds) {
+  const jobsUrl = await getLatestArizonaJobsUrl()
+  const res = await fetch(jobsUrl)
+  if (!res.ok) throw new Error(`Arizona LODES jobs download failed: ${res.status}`)
+
+  const csvText = gunzipSync(Buffer.from(await res.arrayBuffer())).toString('utf8')
+  const lines = csvText.split(/\r?\n/)
+  const headers = (lines[0] || '').split(',')
+  const geocodeIndex = headers.indexOf('w_geocode')
+  const jobsIndex = headers.indexOf('C000')
+
+  if (geocodeIndex < 0 || jobsIndex < 0) {
+    throw new Error('Arizona LODES jobs file is missing expected columns')
+  }
+
+  const byBlockGroup = Object.create(null)
+  const blockGroupIdSet = new Set(blockGroupIds)
+  let matchedRows = 0
+
+  for (let i = 1; i < lines.length; i += 1) {
+    const line = lines[i]
+    if (!line) continue
+
+    const columns = line.split(',')
+    const workBlock = columns[geocodeIndex]
+    if (!workBlock || workBlock.length < 12) continue
+
+    const blockGroupId = workBlock.slice(0, 12)
+    if (!blockGroupIdSet.has(blockGroupId)) continue
+
+    const jobs = Number(columns[jobsIndex])
+    if (!Number.isFinite(jobs) || jobs <= 0) continue
+
+    byBlockGroup[blockGroupId] = (byBlockGroup[blockGroupId] || 0) + jobs
+    matchedRows += 1
+  }
+
+  const yearMatch = jobsUrl.match(/_(\d{4})\.csv\.gz$/)
+
+  return {
+    byBlockGroup,
+    jobsUrl,
+    jobsYear: yearMatch ? Number(yearMatch[1]) : null,
+    matchedRows,
+  }
+}
+
 async function fetchPopulationFeatures(cityConfig) {
   const params = new URLSearchParams({
     where: cityConfig.censusWhere,
@@ -221,6 +291,14 @@ function buildPopulationOverlay(features) {
   }
 }
 
+function withLegacyLayerAliases(layers) {
+  return {
+    ...layers,
+    aadt: layers.roadCo2Pressure || EMPTY_FEATURE_COLLECTION,
+    population: layers.modeShiftOpportunity || EMPTY_FEATURE_COLLECTION,
+  }
+}
+
 async function buildCityOverlays(cityId) {
   const cityConfig = CITY_CONFIG[cityId]
   if (!cityConfig) {
@@ -229,12 +307,13 @@ async function buildCityOverlays(cityId) {
       meta: {
         mode: 'live',
         fetchedAt: new Date().toISOString(),
+        overlayVersion: 'carbon-v1',
         sourceSummary: 'No live overlay connector is configured for this city yet.',
       },
-      layers: {
-        aadt: EMPTY_FEATURE_COLLECTION,
-        population: EMPTY_FEATURE_COLLECTION,
-      },
+      layers: withLegacyLayerAliases({
+        roadCo2Pressure: EMPTY_FEATURE_COLLECTION,
+        modeShiftOpportunity: EMPTY_FEATURE_COLLECTION,
+      }),
     }
   }
 
@@ -242,23 +321,65 @@ async function buildCityOverlays(cityId) {
   const workbook = await loadAadtWorkbookMap(workbookUrl)
   const adotGeometry = await fetchPagedAdotTrafficSections(cityConfig.bbox)
   const censusFeatures = await fetchPopulationFeatures(cityConfig)
+  const blockGroupIds = censusFeatures
+    .map((feature) => String(feature?.attributes?.GEOID || '').trim())
+    .filter(Boolean)
+  let jobsMeta = null
+  let jobsByGeoid = {}
+  let modeShiftModel = 'population+gtfs-derived-service-gap'
+
+  try {
+    jobsMeta = await loadArizonaJobsByBlockGroup(blockGroupIds)
+    jobsByGeoid = jobsMeta.byBlockGroup
+    modeShiftModel = 'population+jobs+gtfs-derived-service-gap'
+  } catch (error) {
+    jobsMeta = { jobsWarning: error.message }
+  }
+
+  const roadCo2Pressure = buildAadtOverlay(adotGeometry, workbook.bySectionJoinId)
+  const modeShiftOpportunity = buildModeShiftOpportunityLayer(
+    buildPopulationOverlay(censusFeatures),
+    cityId,
+    { jobsByGeoid },
+  )
+  const sourceParts = [
+    'Live ADOT traffic workbook',
+    'ADOT traffic-section geometry',
+    'Census 2020 block-group centroids',
+  ]
+
+  if (modeShiftModel === 'population+jobs+gtfs-derived-service-gap') {
+    sourceParts.push('LEHD / LODES workplace jobs')
+  }
+  sourceParts.push('GTFS-derived fixed-guideway stop and route context')
 
   return {
     cityId,
     meta: {
       mode: 'live',
       fetchedAt: new Date().toISOString(),
-      sourceSummary: 'Live ADOT traffic workbook + ADOT traffic-section geometry + Census 2020 block-group centroids.',
+      overlayVersion: 'carbon-v1',
+      sourceSummary: `${sourceParts.join(' + ')}.`,
       aadtWorkbookUrl: workbookUrl,
       aadtSheetName: workbook.sheetName,
       aadtWorkbookRows: workbook.rowCount,
       aadtSectionFeatures: adotGeometry.length,
       censusBlockGroups: censusFeatures.length,
+      lodesJobsUrl: jobsMeta?.jobsUrl || null,
+      lodesJobsYear: jobsMeta?.jobsYear || null,
+      lodesMatchedRows: jobsMeta?.matchedRows || 0,
+      modeShiftModel,
+      jobsWarning: jobsMeta?.jobsWarning || null,
+      gtfsDerivedContext: true,
+      legend: {
+        roadCo2Pressure: { unit: 'vehicles / day' },
+        modeShiftOpportunity: { unit: 'index 0-100' },
+      },
     },
-    layers: {
-      aadt: buildAadtOverlay(adotGeometry, workbook.bySectionJoinId),
-      population: buildPopulationOverlay(censusFeatures),
-    },
+    layers: withLegacyLayerAliases({
+      roadCo2Pressure,
+      modeShiftOpportunity,
+    }),
   }
 }
 
@@ -270,9 +391,9 @@ async function getOverlayPayload(cityId, forceRefresh = false) {
   if (cached && cached.expiresAt > Date.now()) return cached.value
 
   const value = await buildCityOverlays(cityId)
-  const aadtCount = value?.layers?.aadt?.features?.length || 0
-  const populationCount = value?.layers?.population?.features?.length || 0
-  if (aadtCount > 0 || populationCount > 0) {
+  const roadCount = value?.layers?.roadCo2Pressure?.features?.length || value?.layers?.aadt?.features?.length || 0
+  const modeShiftCount = value?.layers?.modeShiftOpportunity?.features?.length || value?.layers?.population?.features?.length || 0
+  if (roadCount > 0 || modeShiftCount > 0) {
     cache.set(cityId, { value, expiresAt: Date.now() + CACHE_TTL_MS })
   }
   return value

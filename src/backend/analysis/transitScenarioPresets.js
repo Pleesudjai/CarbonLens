@@ -3,6 +3,8 @@
  * Each preset showcases different corridor tradeoffs.
  */
 
+import { buildCorridorLineGeometry } from '../../shared/presetCorridors.js'
+
 export const PHOENIX_SCENARIO = {
   cityId: 'phoenix',
   projectName: 'West Phoenix Light Rail Extension',
@@ -12,6 +14,7 @@ export const PHOENIX_SCENARIO = {
       id: 'alt-a',
       name: 'Alt A - 19th Ave Median Running',
       description: 'Primarily at-grade median with one elevated crossing at I-17',
+      geometry: buildCorridorLineGeometry('phoenix', 'alt-a'),
       segments: [
         {
           id: 'a-1',
@@ -100,6 +103,7 @@ export const PHOENIX_SCENARIO = {
       id: 'alt-b',
       name: 'Alt B - Central Ave FRC Option',
       description: 'Fiber-reinforced thinner slab on Central Ave, lower carbon but urban street context',
+      geometry: buildCorridorLineGeometry('phoenix', 'alt-b'),
       segments: [
         {
           id: 'b-1',
@@ -161,6 +165,7 @@ export const PHOENIX_SCENARIO = {
       id: 'alt-c',
       name: 'Alt C - Suburban Low-Cement Route',
       description: 'Lower-disruption suburban alignment with low-cement SCM-rich slab',
+      geometry: buildCorridorLineGeometry('phoenix', 'alt-c'),
       segments: [
         {
           id: 'c-1',

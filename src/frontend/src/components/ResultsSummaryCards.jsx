@@ -1,8 +1,8 @@
 const CORRIDOR_COLORS = ['text-emerald-700', 'text-blue-700', 'text-amber-700']
 
 const LENS_PRIMARY = {
-  planner: ['carbonKgCo2e', 'carbonKgCo2ePerLf', 'durationDays', 'communityBenefitScore'],
-  contractor: ['costUsd', 'buildabilityScore', 'durationDays', 'maintenanceRiskScore'],
+  planner: ['carbonKgCo2e', 'carbonKgCo2ePerLf', 'durationDays', 'constructionCarbonPenaltyScore', 'communityBenefitScore'],
+  contractor: ['costUsd', 'buildabilityScore', 'durationDays', 'maintenanceRiskScore', 'constructionCarbonPenaltyScore'],
   community: ['communityBenefitScore', 'disruptionScore', 'carbonKgCo2e'],
 }
 
@@ -52,6 +52,7 @@ export default function ResultsSummaryCards({ corridorResults, bestOverallId, le
           <MetricRow label="Disruption" values={v('disruptionScore')} format={score} highlighted={hi('disruptionScore')} />
           <MetricRow label="Maintenance Risk" values={v('maintenanceRiskScore')} format={score} highlighted={hi('maintenanceRiskScore')} />
           <MetricRow label="Buildability" values={v('buildabilityScore')} format={score} highlighted={hi('buildabilityScore')} />
+          <MetricRow label="Construction Carbon Penalty" values={v('constructionCarbonPenaltyScore')} format={score} highlighted={hi('constructionCarbonPenaltyScore')} />
           <MetricRow label="Community Benefit" values={v('communityBenefitScore')} format={score} highlighted={hi('communityBenefitScore')} />
           <MetricRow label="Composite" values={v('compositeScore')} format={(v) => v?.toFixed(3)} highlighted={false} />
         </tbody>

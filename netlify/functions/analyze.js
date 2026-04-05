@@ -5,6 +5,7 @@
  */
 import { analyzeScenario } from '../../src/backend/analysis/transitCarbonEngine.js'
 import { PHOENIX_SCENARIO } from '../../src/backend/analysis/transitScenarioPresets.js'
+import { enrichScenarioWithLiveContext } from './live-analysis-context.js'
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -91,8 +92,12 @@ export async function handler(event) {
       return jsonResponse(400, { error: 'Validation failed', details: errors })
     }
 
+    // Enrich scenario with live public context before deterministic scoring
+    const { scenario: enrichedScenario, meta: liveContextMeta } = await enrichScenarioWithLiveContext(payload)
+
     // Run engine
-    const result = analyzeScenario(payload)
+    const result = analyzeScenario(enrichedScenario)
+    result.meta.liveContext = liveContextMeta
     return jsonResponse(200, result)
   } catch (err) {
     return jsonResponse(500, { error: 'Internal analysis error', message: err.message })

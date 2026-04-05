@@ -153,6 +153,28 @@ export const COMMUNITY_WEIGHTS = {
   activityNodeImportance: 0.15,
 }
 
+export const CONSTRUCTION_PENALTY_WEIGHTS = {
+  structureDemand: 0.35,
+  floodDrainage: 0.20,
+  rowStaging: 0.20,
+  sectionPremium: 0.15,
+  utilityUrbanComplexity: 0.10,
+}
+
+export const CONSTRUCTION_STRUCTURE_SCORES = {
+  at_grade_median: 2.5,
+  embedded_urban_street: 5.0,
+  station_zone: 4.5,
+  elevated_crossing: 8.5,
+  bridge_approach: 9.0,
+}
+
+export const CONSTRUCTION_SECTION_PREMIUM_SCORES = {
+  conventional_rc: 5.0,
+  fiber_reduced: 3.5,
+  low_cement_rc: 2.5,
+}
+
 // ─── Composite Score Weights ────────────────────────────────────────────────
 // Lower composite = better. Community benefit is subtracted (credit).
 

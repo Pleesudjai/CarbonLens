@@ -30,6 +30,8 @@ Chosen library direction for this spec:
 - `src/frontend/src/components/TransitHero.jsx` - title, positioning, and intro copy
 - `src/frontend/src/components/CitySelector.jsx` - city preset picker
 - `src/frontend/src/components/CorridorMap.jsx` - MapLibre map and corridor rendering
+- `src/frontend/src/components/BackgroundLayerControl.jsx` - carbon-focused overlay selector and numeric legend
+- `src/frontend/src/components/LiveDataBadge.jsx` - live or fallback source status
 - `src/frontend/src/components/CorridorPanel.jsx` - corridor alternative list and controls
 - `src/frontend/src/components/SegmentEditor.jsx` - edit segment geometry, type, and section family
 - `src/frontend/src/components/AnalyzeActions.jsx` - analyze button, loading state, reset state
@@ -127,6 +129,32 @@ For MVP, do not block the build on live API calls. It is acceptable to use:
 
 But the sidebar should make it clear that these values come from public data rather than user judgment.
 
+### Carbon-Focused Background Overlays
+
+The map should not use a generic community heatmap as the main decision layer.
+
+The map overlay roadmap is:
+
+- `Road CO2 Pressure`
+  - first implementation: live AADT reframed as roadway operating-emissions pressure
+- `Mode-Shift Opportunity`
+  - first implementation: population plus transit-gap starter score
+- `Construction Carbon Penalty`
+  - first implementation: corridor and segment indicator, not a full background layer
+- `Delay Emissions Hotspots`
+  - optional future layer only
+
+The first implementation pass should only ship the first 2 as background overlays.
+
+### Overlay UI Requirements
+
+- overlay labels should read like planning questions, not raw dataset names
+- each visible overlay must have a numeric legend with units
+- the map should show whether an overlay is live, cached, or fallback
+- source badges should be visible during demo
+- the overlay control should explain what the layer means in carbon terms
+- legacy ids such as `aadt` and `population` may exist in code temporarily, but the UI should use carbon-focused labels
+
 ### Map Behavior
 
 For MVP:
@@ -134,11 +162,12 @@ For MVP:
 - show the selected city
 - render alternative corridors as colored lines
 - highlight the currently selected corridor
+- render carbon-focused background overlays beneath corridors and existing transit
 - optionally show segment labels or endpoints
 - show lightweight corridor badges or side-panel summaries for:
-  - traffic intensity
-  - population/jobs served
-  - right-of-way constraint
+  - road CO2 pressure
+  - mode-shift opportunity
+  - construction carbon penalty
 - use Terra Draw if drawing/editing is turned on in the first build
 
 Do not attempt advanced drawing plugins unless they are trivial to implement.
@@ -170,9 +199,11 @@ Avoid product copy that implies one person alone changes transit.
 8. [ ] Show planning-context and community factors as read-only values with source labels
 9. [ ] Create lightweight `mapUtils.js` and `drawUtils.js` helpers
 10. [ ] Build `CorridorMap.jsx` with MapLibre and Terra Draw integration points
-11. [ ] Add `AnalyzeActions.jsx` with loading and disabled states
-12. [ ] Wire the scenario payload to `api.js`
-13. [ ] Keep all components under 150 lines by splitting concerns early
+11. [ ] Build `BackgroundLayerControl.jsx` with stable overlay ids, labels, and legends
+12. [ ] Build `LiveDataBadge.jsx` for live or fallback status
+13. [ ] Add `AnalyzeActions.jsx` with loading and disabled states
+14. [ ] Wire the scenario payload to `api.js`
+15. [ ] Keep all components under 150 lines by splitting concerns early
 
 ## Demo Test
 
@@ -184,6 +215,7 @@ At demo time the team should be able to:
 4. change at least one segment from conventional to fiber-reduced
 5. inspect at least one segment and see source-labeled traffic, flood, and community metrics without typing them manually
 6. click analyze and send the scenario payload successfully
+7. switch between `Road CO2 Pressure` and `Mode-Shift Opportunity` with readable legends
 
 ## Out of Scope
 
@@ -191,5 +223,5 @@ At demo time the team should be able to:
 - full route drawing tools
 - GIS snapping to roads
 - live parcel or utility overlays
-- live traffic or census ingestion in the browser
+- direct live traffic or census ingestion in the browser
 - account-based project management

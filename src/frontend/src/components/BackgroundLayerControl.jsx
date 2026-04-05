@@ -1,14 +1,14 @@
 import { BACKGROUND_LAYER_OPTIONS } from './backgroundOverlayData'
 
 const LEGEND_CONFIG = {
-  aadt: {
+  roadCo2Pressure: {
     valueKey: 'aadt',
     unitLabel: 'vehicles / day',
     colors: ['#fef3c7', '#f59e0b', '#dc2626', '#7f1d1d'],
   },
-  population: {
-    valueKey: 'population',
-    unitLabel: 'people / block group',
+  modeShiftOpportunity: {
+    valueKey: 'modeShiftOpportunity',
+    unitLabel: 'index 0-100',
     colors: ['#fee2e2', '#fca5a5', '#ef4444', '#7f1d1d'],
   },
 }
@@ -19,7 +19,7 @@ function percentileIndex(values, percentile) {
 }
 
 function formatLegendValue(value) {
-  if (!Number.isFinite(value)) return '—'
+  if (!Number.isFinite(value)) return '--'
   return new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(value)
 }
 
@@ -60,14 +60,14 @@ export default function BackgroundLayerControl({
   const coverageText = loading
     ? 'Refreshing live public data for this city...'
     : error
-      ? `Live API unavailable right now: ${error}. Showing the local fallback snapshot instead.`
+      ? `Live API unavailable right now: ${error}. No overlay is shown until live public data returns.`
       : hasData
-        ? sourceSummary || `Live public data is connected for ${city}.`
+        ? sourceSummary || `Live public carbon-planning overlays are connected for ${city}.`
         : 'No overlay data is loaded for this city yet.'
 
   return (
-    <div className="absolute left-4 top-20 z-10 w-72 rounded-xl border border-gray-200 bg-white/95 p-3 shadow-lg backdrop-blur-sm">
-      <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-gray-500">Background Layer</p>
+    <div className="absolute left-4 top-20 z-10 max-h-[calc(100%-6rem)] w-72 overflow-y-auto rounded-xl border border-gray-200 bg-white/95 p-3 shadow-lg backdrop-blur-sm">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-gray-500">Carbon Overlay</p>
       <p className="mt-1 text-xs font-semibold text-gray-900">{active.label}</p>
       <p className="mt-1 text-[11px] leading-relaxed text-gray-500">{active.description}</p>
 

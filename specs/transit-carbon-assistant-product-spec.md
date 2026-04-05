@@ -14,6 +14,9 @@ Choose a city, sketch or configure alternative rail corridors, and compare where
 2. `Section optimization`
 For each corridor segment, compare section families such as conventional reinforced track slab, thinner steel-fiber slab, and lower-cement SCM-rich slab.
 
+3. `Carbon overlay intelligence`
+Use public-data-driven map overlays to show where operating emissions pressure is highest now, where mode shift is most promising, and where construction is most carbon-intensive.
+
 ## Why This Fits The Hackathon
 
 - It directly addresses `lower carbon footprint` and `measure environmental impact`.
@@ -86,6 +89,10 @@ Role summary:
 - up to `3` corridor alternatives per scenario
 - manual segment definition for each corridor
 - section comparison for at least `3` slab/guideway section families
+- carbon-focused background overlays and planning indicators:
+  - `Road CO2 Pressure`
+  - `Mode-Shift Opportunity`
+  - `Construction Carbon Penalty` as a corridor-level metric first
 - public-data-derived planning factors attached to each segment:
   - traffic intensity
   - intersection density
@@ -116,6 +123,7 @@ Role summary:
 - live utility database integration
 - real EPD ingestion pipeline
 - real-time collaboration or accounts
+- citywide congestion-emissions modeling in the first weekend build
 
 ## MVP Workflow
 
@@ -124,14 +132,46 @@ Role summary:
 3. User creates up to 3 corridor alternatives.
 4. User defines segments for each corridor.
 5. User assigns a section family while the app attaches or refreshes a planning-context snapshot from public datasets for each segment.
-6. User runs analysis.
-7. App compares alternatives and highlights:
+6. User reviews carbon-relevant map overlays before or during corridor comparison.
+7. User runs analysis.
+8. App compares alternatives and highlights:
    - lowest carbon
    - lowest cost
    - shortest duration
    - highest community benefit
    - best balanced option
-8. App explains the tradeoffs in plain language.
+9. App explains the tradeoffs in plain language.
+
+## Carbon Decision Overlays
+
+The app should use a carbon-specific overlay stack rather than a generic community heatmap.
+
+### Road CO2 Pressure
+
+- purpose: show where roadway demand likely creates the highest current operating-emissions pressure
+- first data source: live ADOT AADT
+- first map label: `Road CO2 Pressure`
+- first legend unit: `vehicles / day`
+
+### Mode-Shift Opportunity
+
+- purpose: show where a rail extension could remove the most car travel
+- phase 1 inputs: population plus transit gap
+- phase 2 inputs: population, jobs, and transit gap
+- first map label: `Mode-Shift Opportunity`
+- first legend unit: `index 0-100`
+
+### Construction Carbon Penalty
+
+- purpose: show where building rail would likely require more embodied carbon
+- first version should appear in corridor and segment analysis, not as a citywide background map
+- first result label: `Construction Carbon Penalty`
+- first unit: conceptual `index 1-10`
+
+### Delay Emissions Hotspots
+
+- optional future layer only
+- use only if the team has a defendable reliability or delay source
 
 ## Segment Types
 
@@ -168,6 +208,12 @@ Optional stretch:
 The MVP should separate `physical segment type` from `real-world corridor context`.
 
 These fields should be derived from public or agency datasets, not manually typed by end users.
+
+When possible, present them through carbon-relevant framing:
+
+- traffic should support `Road CO2 Pressure`
+- population, jobs, and transit gap should support `Mode-Shift Opportunity`
+- structure, flood, and corridor constraints should support `Construction Carbon Penalty`
 
 ### Traffic And Operations
 
@@ -264,6 +310,10 @@ These factors mainly affect:
 - corridor total score
 - best overall recommendation
 - simple explanation of why that option won
+- corridor context signals for:
+  - road CO2 pressure
+  - mode-shift opportunity
+  - construction carbon penalty
 
 ## Data Model
 
@@ -319,6 +369,12 @@ Use this conceptual schema for all layers.
   ]
 }
 ```
+
+The analysis result may also expose optional carbon-context helpers such as:
+
+- `roadCo2PressureScore`
+- `modeShiftOpportunityScore`
+- `constructionCarbonPenaltyScore`
 
 ## Scoring Model
 
@@ -468,6 +524,10 @@ Use simple linear production assumptions for MVP:
 - use plain language next to technical metrics
 - make the engineering logic visible through section cards and metric breakdowns
 - make community value visible next to engineering feasibility
+- make the carbon story visible through:
+  - current roadway emissions pressure
+  - future mode-shift potential
+  - embodied-carbon build penalty
 
 ## Technical Architecture
 

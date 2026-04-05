@@ -14,6 +14,36 @@ const TYPE_LABELS = {
   bridge_approach: 'Bridge',
 }
 
+const DRIVER_LABELS = {
+  elevated_structure: 'elevated structure',
+  bridge_structure: 'bridge structure',
+  embedded_urban_construction: 'embedded urban construction',
+  flood_mitigation: 'flood mitigation',
+  constrained_row: 'constrained ROW',
+  utility_relocation: 'utility relocation',
+  urban_core_staging: 'urban-core staging',
+  night_work_window: 'night work',
+}
+
+function formatDriverList(segment) {
+  const drivers = segment.metrics.constructionCarbonPenalty?.drivers || []
+  if (!drivers.length) return null
+  return drivers.map((driver) => DRIVER_LABELS[driver] || driver.replaceAll('_', ' ')).slice(0, 3).join(', ')
+}
+
+function formatFloodContext(segment) {
+  const flood = segment.liveContext?.flood
+  if (!flood) return null
+
+  if (!flood.live) {
+    return `Flood ${flood.risk || 'low'} • scenario fallback`
+  }
+
+  const zone = flood.primaryZone ? `Zone ${flood.primaryZone}` : 'No mapped FEMA zone'
+  const subtype = flood.primarySubtype ? ` (${flood.primarySubtype})` : ''
+  return `FEMA ${zone}${subtype} • ${flood.risk} risk`
+}
+
 export default function SegmentBreakdownTable({ corridorResults }) {
   const [expandedId, setExpandedId] = useState(null)
   if (!corridorResults?.length) return null
@@ -39,17 +69,28 @@ export default function SegmentBreakdownTable({ corridorResults }) {
                   <th className="py-1 text-right">Section</th>
                   <th className="py-1 text-right">Length</th>
                   <th className="py-1 text-right">Carbon</th>
+                  <th className="py-1 text-right">Build Carbon</th>
                   <th className="py-1 text-right">Cost</th>
                 </tr>
               </thead>
               <tbody>
                 {c.segmentResults.map((s) => (
                   <tr key={s.id} className="border-b border-gray-50">
-                    <td className="py-1.5 text-gray-700">{s.label}</td>
+                    <td className="py-1.5 text-gray-700">
+                      <div>{s.label}</div>
+                      {(formatFloodContext(s) || formatDriverList(s)) && (
+                        <div className="mt-0.5 text-[10px] text-gray-400">
+                          {formatFloodContext(s)}
+                          {formatFloodContext(s) && formatDriverList(s) ? ' • ' : ''}
+                          {formatDriverList(s) ? `Drivers: ${formatDriverList(s)}` : ''}
+                        </div>
+                      )}
+                    </td>
                     <td className="py-1.5 text-right text-gray-500">{TYPE_LABELS[s.segmentType] || s.segmentType}</td>
                     <td className="py-1.5 text-right text-gray-500">{SECTION_LABELS[s.sectionFamily] || s.sectionFamily}</td>
                     <td className="py-1.5 text-right text-gray-700">{s.lengthFt.toLocaleString()}'</td>
                     <td className="py-1.5 text-right text-gray-700">{Math.round(s.metrics.carbonKgCo2e / 1000)}t</td>
+                    <td className="py-1.5 text-right text-gray-700">{s.metrics.constructionCarbonPenaltyScore.toFixed(1)}</td>
                     <td className="py-1.5 text-right text-gray-700">${(s.metrics.costUsd / 1e6).toFixed(2)}M</td>
                   </tr>
                 ))}

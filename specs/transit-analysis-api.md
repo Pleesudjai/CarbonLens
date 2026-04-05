@@ -13,6 +13,8 @@ The function should keep the contract simple:
 - call the engine
 - return analysis results
 
+This spec also defines the background-overlay endpoint that supports carbon-focused planning layers on the map.
+
 ## Inputs / Outputs
 
 - Input: `POST /api/analyze` with scenario payload JSON
@@ -21,6 +23,7 @@ The function should keep the contract simple:
 ## Files to Create or Edit
 
 - `netlify/functions/analyze.js` - request validation, engine call, and response formatting
+- `netlify/functions/background-overlays.js` - live or cached public-data overlays for the map
 - `netlify/functions/package.json` - edit only if a runtime dependency is truly required
 
 ## Request Contract
@@ -97,6 +100,62 @@ Return codes:
 - `405` for unsupported method
 - `500` for unexpected errors
 
+## Background Overlay Contract
+
+Request:
+
+- `GET /api/background-overlays?city=phoenix`
+
+Target stable layer ids:
+
+- `roadCo2Pressure`
+- `modeShiftOpportunity`
+- `constructionCarbonPenalty`
+- `delayEmissionsHotspots`
+
+Migration rule:
+
+- the API may keep temporary aliases for currently shipped layer ids
+- `aadt` may alias `roadCo2Pressure`
+- `population` may alias `modeShiftOpportunityLite`
+
+Suggested success shape:
+
+```json
+{
+  "cityId": "phoenix",
+  "meta": {
+    "mode": "live",
+    "overlayVersion": "carbon-v1",
+    "sourceSummary": "Live ADOT traffic workbook plus Census population context.",
+    "legend": {
+      "roadCo2Pressure": {
+        "unit": "vehicles / day"
+      },
+      "modeShiftOpportunity": {
+        "unit": "index 0-100"
+      }
+    }
+  },
+  "layers": {
+    "roadCo2Pressure": { "type": "FeatureCollection", "features": [] },
+    "modeShiftOpportunity": { "type": "FeatureCollection", "features": [] }
+  }
+}
+```
+
+Phase rules:
+
+- Phase 1:
+  - serve `roadCo2Pressure` from live ADOT AADT
+  - serve `modeShiftOpportunityLite` from population plus transit-gap starter logic
+- Phase 2:
+  - upgrade to full `modeShiftOpportunity`
+- Phase 3:
+  - expose `constructionCarbonPenalty` metadata when the engine can support it
+- Phase 4:
+  - add `delayEmissionsHotspots` only if a defendable source exists
+
 ## Validation Rules
 
 - method must be `POST`
@@ -125,6 +184,8 @@ Return codes:
 7. [ ] Call `analyzeScenario(payload)`
 8. [ ] Return Netlify-standard JSON response
 9. [ ] Return clear error messages for bad input
+10. [ ] Keep overlay metadata and legend units stable so the frontend does not guess
+11. [ ] Prefer backend-side joins for public datasets instead of direct browser calls
 
 ## Demo Test
 

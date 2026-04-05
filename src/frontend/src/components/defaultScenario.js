@@ -3,6 +3,8 @@
  * State shape matches the API contract so App.jsx can send it directly.
  */
 
+import { buildCorridorFeatureCollection, buildCorridorLineGeometry, getPresetCorridorCoordinates } from '../../../shared/presetCorridors.js'
+
 function seg(id, label, segmentType, sectionFamily, lengthFt, context, factors, community) {
   return {
     id, label, segmentType, sectionFamily, lengthFt, context,
@@ -23,24 +25,12 @@ function seg(id, label, segmentType, sectionFamily, lengthFt, context, factors, 
   }
 }
 
-// Representative line coordinates for map rendering [lng, lat]
-const PHOENIX_LINES = {
-  'alt-a': [[-112.099, 33.509], [-112.099, 33.494], [-112.099, 33.480], [-112.099, 33.465]],
-  'alt-b': [[-112.074, 33.509], [-112.074, 33.494], [-112.074, 33.480], [-112.074, 33.459]],
-  'alt-c': [[-112.099, 33.530], [-112.074, 33.530], [-112.050, 33.530], [-112.030, 33.530]],
-}
-
 export function hasPresetGeometry(corridorId, cityId) {
-  return cityId === 'phoenix' && corridorId in PHOENIX_LINES
+  return getPresetCorridorCoordinates(cityId, corridorId).length >= 2
 }
 
 export function corridorGeojson(corridorId, cityId) {
-  const coords = (cityId === 'phoenix' && PHOENIX_LINES[corridorId]) || []
-  if (coords.length < 2) return { type: 'FeatureCollection', features: [] }
-  return {
-    type: 'FeatureCollection',
-    features: [{ type: 'Feature', geometry: { type: 'LineString', coordinates: coords }, properties: { id: corridorId } }],
-  }
+  return buildCorridorFeatureCollection(cityId, corridorId)
 }
 
 export function createPhoenixScenario() {
@@ -51,6 +41,7 @@ export function createPhoenixScenario() {
     corridors: [
       {
         id: 'alt-a', name: 'Alt A - 19th Ave Median Running',
+        geometry: buildCorridorLineGeometry('phoenix', 'alt-a'),
         segments: [
           seg('a-1', '19th Ave at-grade', 'at_grade_median', 'conventional_rc', 8400, 'urban_arterial',
             { trafficAadt: 28000 }, { populationCatchment: 7, jobCatchment: 5, zeroCarHouseholdsPct: 6, heatExposureHigh: true }),
@@ -64,6 +55,7 @@ export function createPhoenixScenario() {
       },
       {
         id: 'alt-b', name: 'Alt B - Central Ave FRC Option',
+        geometry: buildCorridorLineGeometry('phoenix', 'alt-b'),
         segments: [
           seg('b-1', 'Central Ave embedded', 'embedded_urban_street', 'fiber_reduced', 10500, 'urban_core',
             { trafficAadt: 32000, intersectionDensityPerMi: 12, utilityDensityHigh: true, trafficSensitivityHigh: true, constrainedRow: true, floodRisk: 'moderate', urbanCore: true, nightWorkOnly: true },
@@ -75,6 +67,7 @@ export function createPhoenixScenario() {
       },
       {
         id: 'alt-c', name: 'Alt C - Suburban Low-Cement',
+        geometry: buildCorridorLineGeometry('phoenix', 'alt-c'),
         segments: [
           seg('c-1', 'Bethany Home at-grade', 'at_grade_median', 'low_cement_rc', 8500, 'suburban',
             { trafficAadt: 18000, intersectionDensityPerMi: 4 }, { populationCatchment: 5, jobCatchment: 3, zeroCarHouseholdsPct: 4 }),
@@ -97,6 +90,7 @@ export function createDefaultScenario(cityId = 'phoenix') {
     planningGoal: '',
     corridors: [{
       id: 'alt-a', name: 'Alt A',
+      geometry: null,
       segments: [seg('a-1', 'Segment 1', 'at_grade_median', 'conventional_rc', 5000, 'suburban', {}, {})],
     }],
   }

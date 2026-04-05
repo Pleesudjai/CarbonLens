@@ -31,12 +31,12 @@ const EXISTING_TRANSIT_SOURCE = 'existing-transit'
 export const EXISTING_TRANSIT_LAYER = 'existing-transit-line'
 const EXISTING_STATIONS_SOURCE = 'existing-transit-stations'
 export const EXISTING_STATIONS_LAYER = 'existing-transit-stations-circle'
-const AADT_BACKGROUND_SOURCE = 'background-aadt'
-const AADT_HEATMAP_LAYER = 'background-aadt-heatmap'
-const AADT_POINTS_LAYER = 'background-aadt-points'
-const POPULATION_BACKGROUND_SOURCE = 'background-population'
-const POPULATION_HEATMAP_LAYER = 'background-population-heatmap'
-const POPULATION_POINTS_LAYER = 'background-population-points'
+const ROAD_CO2_PRESSURE_SOURCE = 'background-road-co2-pressure'
+const ROAD_CO2_PRESSURE_HEATMAP_LAYER = 'background-road-co2-pressure-heatmap'
+const ROAD_CO2_PRESSURE_POINTS_LAYER = 'background-road-co2-pressure-points'
+const MODE_SHIFT_OPPORTUNITY_SOURCE = 'background-mode-shift-opportunity'
+const MODE_SHIFT_OPPORTUNITY_HEATMAP_LAYER = 'background-mode-shift-opportunity-heatmap'
+const MODE_SHIFT_OPPORTUNITY_POINTS_LAYER = 'background-mode-shift-opportunity-points'
 
 function setLayerVisibility(map, layerId, visible) {
   if (map.getLayer(layerId)) {
@@ -158,16 +158,16 @@ export function addExistingTransitStationsLayer(map, geojson) {
   })
 }
 
-export function syncBackgroundOverlay(map, overlayId, aadtGeojson, populationGeojson) {
+export function syncBackgroundOverlay(map, overlayId, roadCo2PressureGeojson, modeShiftOpportunityGeojson) {
   const beforeId = map.getLayer(EXISTING_TRANSIT_LAYER) ? EXISTING_TRANSIT_LAYER : undefined
 
-  ensureGeojsonSource(map, AADT_BACKGROUND_SOURCE, aadtGeojson)
-  if (!map.getLayer(AADT_HEATMAP_LAYER)) {
+  ensureGeojsonSource(map, ROAD_CO2_PRESSURE_SOURCE, roadCo2PressureGeojson)
+  if (!map.getLayer(ROAD_CO2_PRESSURE_HEATMAP_LAYER)) {
     map.addLayer(
       {
-        id: AADT_HEATMAP_LAYER,
+        id: ROAD_CO2_PRESSURE_HEATMAP_LAYER,
         type: 'heatmap',
-        source: AADT_BACKGROUND_SOURCE,
+        source: ROAD_CO2_PRESSURE_SOURCE,
         layout: { visibility: 'none' },
         paint: {
           'heatmap-weight': [
@@ -211,12 +211,12 @@ export function syncBackgroundOverlay(map, overlayId, aadtGeojson, populationGeo
     )
   }
 
-  if (!map.getLayer(AADT_POINTS_LAYER)) {
+  if (!map.getLayer(ROAD_CO2_PRESSURE_POINTS_LAYER)) {
     map.addLayer(
       {
-        id: AADT_POINTS_LAYER,
+        id: ROAD_CO2_PRESSURE_POINTS_LAYER,
         type: 'circle',
-        source: AADT_BACKGROUND_SOURCE,
+        source: ROAD_CO2_PRESSURE_SOURCE,
         layout: { visibility: 'none' },
         paint: {
           'circle-radius': [
@@ -250,13 +250,13 @@ export function syncBackgroundOverlay(map, overlayId, aadtGeojson, populationGeo
     )
   }
 
-  ensureGeojsonSource(map, POPULATION_BACKGROUND_SOURCE, populationGeojson)
-  if (!map.getLayer(POPULATION_HEATMAP_LAYER)) {
+  ensureGeojsonSource(map, MODE_SHIFT_OPPORTUNITY_SOURCE, modeShiftOpportunityGeojson)
+  if (!map.getLayer(MODE_SHIFT_OPPORTUNITY_HEATMAP_LAYER)) {
     map.addLayer(
       {
-        id: POPULATION_HEATMAP_LAYER,
+        id: MODE_SHIFT_OPPORTUNITY_HEATMAP_LAYER,
         type: 'heatmap',
-        source: POPULATION_BACKGROUND_SOURCE,
+        source: MODE_SHIFT_OPPORTUNITY_SOURCE,
         layout: { visibility: 'none' },
         paint: {
           'heatmap-weight': [
@@ -300,12 +300,12 @@ export function syncBackgroundOverlay(map, overlayId, aadtGeojson, populationGeo
     )
   }
 
-  if (!map.getLayer(POPULATION_POINTS_LAYER)) {
+  if (!map.getLayer(MODE_SHIFT_OPPORTUNITY_POINTS_LAYER)) {
     map.addLayer(
       {
-        id: POPULATION_POINTS_LAYER,
+        id: MODE_SHIFT_OPPORTUNITY_POINTS_LAYER,
         type: 'circle',
-        source: POPULATION_BACKGROUND_SOURCE,
+        source: MODE_SHIFT_OPPORTUNITY_SOURCE,
         layout: { visibility: 'none' },
         paint: {
           'circle-radius': [
@@ -339,10 +339,18 @@ export function syncBackgroundOverlay(map, overlayId, aadtGeojson, populationGeo
     )
   }
 
-  setLayerVisibility(map, AADT_HEATMAP_LAYER, overlayId === 'aadt')
-  setLayerVisibility(map, AADT_POINTS_LAYER, overlayId === 'aadt')
-  setLayerVisibility(map, POPULATION_HEATMAP_LAYER, overlayId === 'population')
-  setLayerVisibility(map, POPULATION_POINTS_LAYER, overlayId === 'population')
+  setLayerVisibility(map, ROAD_CO2_PRESSURE_HEATMAP_LAYER, overlayId === 'roadCo2Pressure' || overlayId === 'aadt')
+  setLayerVisibility(map, ROAD_CO2_PRESSURE_POINTS_LAYER, overlayId === 'roadCo2Pressure' || overlayId === 'aadt')
+  setLayerVisibility(
+    map,
+    MODE_SHIFT_OPPORTUNITY_HEATMAP_LAYER,
+    overlayId === 'modeShiftOpportunity' || overlayId === 'population',
+  )
+  setLayerVisibility(
+    map,
+    MODE_SHIFT_OPPORTUNITY_POINTS_LAYER,
+    overlayId === 'modeShiftOpportunity' || overlayId === 'population',
+  )
 }
 
 /**

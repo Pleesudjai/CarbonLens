@@ -4,8 +4,10 @@ function getSourcePills(sourceSummary = '') {
 
   if (text.includes('adot')) pills.push('Live ADOT')
   if (text.includes('census')) pills.push('Live Census')
+  if (text.includes('lodes') || text.includes('lehd')) pills.push('Live LEHD')
   if (text.includes('fema')) pills.push('Live FEMA')
-  if (text.includes('gtfs')) pills.push('Live GTFS')
+  if (text.includes('live gtfs')) pills.push('Live GTFS')
+  else if (text.includes('gtfs')) pills.push('GTFS Context')
 
   return pills
 }
@@ -26,7 +28,7 @@ export default function LiveDataBadge({ loading = false, error = null, sourceSum
     return (
       <div className="absolute right-4 bottom-4 z-10 rounded-xl border border-gray-200 bg-white/95 px-3 py-2 shadow-lg backdrop-blur-sm">
         <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-gray-500">Data Mode</p>
-        <p className="mt-1 text-[11px] text-gray-700">Using fallback snapshot</p>
+        <p className="mt-1 text-[11px] text-gray-700">Live data unavailable</p>
       </div>
     )
   }

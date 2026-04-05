@@ -12,6 +12,7 @@ This engine is the core of the MVP. It must work without external APIs.
 
 - Input: scenario payload with city, corridor alternatives, segments, section families, and derived context/community factors populated from public-data connectors or dataset snapshots
 - Output: normalized analysis result with corridor totals, segment breakdowns, ranking, and recommendation metadata
+- Output may also include normalized carbon-context helper scores that align with the map overlay roadmap
 
 ## Files to Create or Edit
 
@@ -78,6 +79,11 @@ The engine must:
         "buildabilityScore": 0,
         "communityBenefitScore": 0,
         "compositeScore": 0
+      },
+      "overlaySignals": {
+        "roadCo2PressureScore": 0,
+        "modeShiftOpportunityScore": 0,
+        "constructionCarbonPenaltyScore": 0
       },
       "segmentResults": []
     }
@@ -252,6 +258,82 @@ Use:
 
 This keeps the overall score interpretable while still rewarding corridors that serve more people and stronger transit connections.
 
+## Carbon Overlay Support Metrics
+
+The engine should expose helper scores that align with the carbon overlay roadmap.
+
+These are not replacements for the main embodied-carbon calculations. They are planning signals that help the frontend explain why a corridor matters.
+
+### Road CO2 Pressure Score
+
+Purpose:
+
+- represent roadway operating-emissions pressure using corridor traffic context
+
+First-pass logic:
+
+- normalize segment `trafficAadt` values within the scenario
+- aggregate by weighted segment length
+
+Notes:
+
+- keep this as a proxy score unless a defendable CO2 factor set is introduced later
+
+### Mode-Shift Opportunity Score
+
+Purpose:
+
+- represent where rail could plausibly reduce car travel
+
+Phase 1 lite logic:
+
+- combine normalized population catchment plus a transit-gap proxy
+
+Suggested lite formula:
+
+- `0.65 * populationNorm + 0.35 * transitGapNorm`
+
+Transit-gap proxy can start from:
+
+- weaker transfer connectivity
+- lower existing fixed-guideway access
+- lower current service strength if GTFS support is available
+
+Phase 2 full logic:
+
+- add jobs and formal GTFS service-gap scoring
+
+Suggested full formula:
+
+- `0.40 * populationNorm + 0.35 * jobsNorm + 0.25 * transitGapNorm`
+
+### Construction Carbon Penalty Score
+
+Purpose:
+
+- represent where a corridor is likely to require more embodied carbon because of structure, flooding, staging, or section choice
+
+Suggested first-pass factors:
+
+- segment type structure demand
+- flood risk
+- right-of-way constraint
+- urban-core complexity
+- section-family carbon premium
+
+Suggested normalized weights:
+
+- `0.35 segment structure demand`
+- `0.20 flood / drainage penalty`
+- `0.20 right-of-way / staging penalty`
+- `0.15 section-family embodied-carbon premium`
+- `0.10 utility or urban-core complexity`
+
+Output rule:
+
+- expose this as a conceptual score first
+- do not present it as exact `kg CO2e / ft` until the constants are calibrated
+
 ## Scenario Presets
 
 Seed `transitScenarioPresets.js` with:
@@ -285,6 +367,7 @@ The preset should showcase:
    - `expandSectionInputs`
    - `calculateSegmentQuantities`
    - `calculateSegmentMetrics`
+   - `calculateOverlaySignals`
    - `aggregateCorridor`
    - `rankCorridors`
    - `analyzeScenario`

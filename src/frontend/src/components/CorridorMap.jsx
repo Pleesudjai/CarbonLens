@@ -77,8 +77,8 @@ export default function CorridorMap({
     syncBackgroundOverlay(
       mapRef.current,
       backgroundLayer,
-      backgroundData?.layers?.aadt,
-      backgroundData?.layers?.population,
+      backgroundData?.layers?.roadCo2Pressure || backgroundData?.layers?.aadt,
+      backgroundData?.layers?.modeShiftOpportunity || backgroundData?.layers?.population,
     )
   }, [backgroundLayer, backgroundData, city, loaded])
 
@@ -295,14 +295,17 @@ export default function CorridorMap({
   }, [selectedSegment, loaded])
 
   return (
-    <div className="relative h-full w-full">
+    <div className="relative h-full w-full overflow-hidden">
       <div ref={containerRef} className="h-full w-full rounded-lg" style={{ minHeight: 400 }} />
       <BackgroundLayerControl
         city={city}
         value={backgroundLayer}
         onChange={onBackgroundLayerChange}
         hasData={Boolean(
-          backgroundData?.layers?.aadt?.features?.length || backgroundData?.layers?.population?.features?.length,
+          backgroundData?.layers?.roadCo2Pressure?.features?.length
+            || backgroundData?.layers?.modeShiftOpportunity?.features?.length
+            || backgroundData?.layers?.aadt?.features?.length
+            || backgroundData?.layers?.population?.features?.length,
         )}
         loading={backgroundLoading}
         error={backgroundError}

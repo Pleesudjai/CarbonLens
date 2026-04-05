@@ -27,6 +27,7 @@ This spec is intentionally about setup boundaries and utility roles, not full fe
 - city preset navigation
 - corridor and station GeoJSON layers
 - segment highlighting
+- background overlays and legends for carbon-related planning layers
 
 ### Terra Draw
 
@@ -48,12 +49,14 @@ This spec is intentionally about setup boundaries and utility roles, not full fe
 - station-area indexing
 - population and jobs scoring on a consistent grid
 - transparent community-benefit calculations
+- mode-shift opportunity indexing for carbon-focused map overlays
 
 ### node-gtfs
 
 - import GTFS to SQLite
 - query routes, stops, shapes, and transfers
 - provide optional real network context for station connectivity scoring
+- provide transit-gap context for mode-shift-opportunity calculations
 
 ## Implementation Guidance
 
@@ -75,8 +78,12 @@ Keep these libraries behind simple utilities instead of scattering them directly
 - `src/frontend/src/components/CorridorMap.jsx` - MapLibre map host
 - `src/frontend/src/components/mapUtils.js` - small GeoJSON and map helper functions
 - `src/frontend/src/components/drawUtils.js` - Terra Draw setup and editing helpers
+- `src/frontend/src/components/BackgroundLayerControl.jsx` - overlay switcher and numeric legends
+- `src/frontend/src/components/LiveDataBadge.jsx` - live or fallback source state
+- `src/frontend/src/components/backgroundOverlayData.js` - fallback snapshots and overlay metadata
 - `src/backend/analysis/geospatialUtils.js` - Turf and H3 helper functions used by analysis
 - `src/backend/analysis/gtfsContext.js` - optional GTFS loading and connectivity helper
+- `netlify/functions/background-overlays.js` - live or cached overlay payloads
 - `src/frontend/package.json` - add frontend mapping and geometry dependencies
 - `netlify/functions/package.json` or root package config - add GTFS dependency only where it will actually run
 
@@ -102,6 +109,7 @@ Prefer keeping GTFS ingestion on the backend side.
 - `Turf` is the default geometry utility, not handwritten geometry math where Turf already solves it cleanly
 - `H3` is the default density/catchment indexing approach
 - `node-gtfs` is optional for the first demo but should be treated as the chosen path for real feed support
+- carbon-focused overlay ids and labels should be stable across frontend and backend before visual tuning begins
 
 ## Implementation Steps
 
@@ -112,7 +120,11 @@ Prefer keeping GTFS ingestion on the backend side.
    - preset-only
    - optional imported feed
    - optional future realtime
-5. [ ] Ensure later specs reference these libraries instead of inventing alternatives
+5. [ ] Define a stable boundary for background overlays:
+   - live backend connectors
+   - frontend fallback snapshots
+   - numeric legend metadata
+6. [ ] Ensure later specs reference these libraries instead of inventing alternatives
 
 ## Demo Test
 

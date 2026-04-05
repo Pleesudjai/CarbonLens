@@ -12,6 +12,9 @@ import {
   DISRUPTION_THRESHOLDS,
   COMMUNITY_WEIGHTS,
   COMPOSITE_WEIGHTS,
+  CONSTRUCTION_PENALTY_WEIGHTS,
+  CONSTRUCTION_STRUCTURE_SCORES,
+  CONSTRUCTION_SECTION_PREMIUM_SCORES,
 } from './transitConstants.js'
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -23,6 +26,46 @@ function clamp(val, min, max) {
 function round(val, decimals = 1) {
   const f = 10 ** decimals
   return Math.round(val * f) / f
+}
+
+function floodPenaltyScore(floodRisk) {
+  switch (floodRisk) {
+    case 'high':
+      return 8.5
+    case 'moderate':
+      return 5.5
+    default:
+      return 1.5
+  }
+}
+
+function rowStagingPenaltyScore(factors) {
+  let score = factors.constrainedRow ? 7 : 2
+  if (factors.nightWorkOnly) score += 1
+  if (factors.trafficSensitivityHigh) score += 1
+  if ((factors.trafficAadt || 0) > DISRUPTION_THRESHOLDS.trafficAadtHigh) score += 0.5
+  return clamp(score, 1, 10)
+}
+
+function utilityUrbanComplexityScore(factors) {
+  let score = 2
+  if (factors.utilityDensityHigh) score += 4
+  if (factors.urbanCore) score += 3
+  if ((factors.intersectionDensityPerMi || 0) > DISRUPTION_THRESHOLDS.intersectionDensityHigh) score += 1
+  return clamp(score, 1, 10)
+}
+
+function constructionPenaltyDrivers(segment, factors) {
+  const drivers = []
+  if (segment.segmentType === 'elevated_crossing') drivers.push('elevated_structure')
+  if (segment.segmentType === 'bridge_approach') drivers.push('bridge_structure')
+  if (segment.segmentType === 'embedded_urban_street') drivers.push('embedded_urban_construction')
+  if (factors.floodRisk === 'moderate' || factors.floodRisk === 'high') drivers.push('flood_mitigation')
+  if (factors.constrainedRow) drivers.push('constrained_row')
+  if (factors.utilityDensityHigh) drivers.push('utility_relocation')
+  if (factors.urbanCore) drivers.push('urban_core_staging')
+  if (factors.nightWorkOnly) drivers.push('night_work_window')
+  return drivers
 }
 
 // ─── 1. Expand Section Inputs ───────────────────────────────────────────────
@@ -120,6 +163,24 @@ export function calculateSegmentMetrics(segment, section, quantities) {
   if (section.durabilityHigh) maintenance -= 1
   const maintenanceRiskScore = clamp(maintenance, 1, 10)
 
+  // Construction carbon penalty (1-10, higher = more structurally carbon-heavy)
+  const constructionComponents = {
+    structureDemand: CONSTRUCTION_STRUCTURE_SCORES[segment.segmentType] ?? 4,
+    floodDrainage: floodPenaltyScore(factors.floodRisk),
+    rowStaging: rowStagingPenaltyScore(factors),
+    sectionPremium: CONSTRUCTION_SECTION_PREMIUM_SCORES[segment.sectionFamily] ?? 4,
+    utilityUrbanComplexity: utilityUrbanComplexityScore(factors),
+  }
+  const cpw = CONSTRUCTION_PENALTY_WEIGHTS
+  const constructionCarbonPenaltyScore = clamp(round(
+    constructionComponents.structureDemand * cpw.structureDemand +
+    constructionComponents.floodDrainage * cpw.floodDrainage +
+    constructionComponents.rowStaging * cpw.rowStaging +
+    constructionComponents.sectionPremium * cpw.sectionPremium +
+    constructionComponents.utilityUrbanComplexity * cpw.utilityUrbanComplexity,
+    1,
+  ), 1, 10)
+
   return {
     carbonKgCo2e,
     costUsd,
@@ -128,6 +189,11 @@ export function calculateSegmentMetrics(segment, section, quantities) {
     buildabilityScore,
     communityBenefitScore,
     maintenanceRiskScore,
+    constructionCarbonPenaltyScore,
+    constructionCarbonPenalty: {
+      drivers: constructionPenaltyDrivers(segment, factors),
+      components: constructionComponents,
+    },
     carbonBreakdown: {
       concrete: round(concreteCarbon, 0),
       rebar: round(rebarCarbon, 0),
@@ -149,6 +215,9 @@ export function aggregateCorridor(corridor) {
       label: seg.label,
       segmentType: seg.segmentType,
       sectionFamily: seg.sectionFamily,
+      context: seg.context,
+      factors: seg.factors || {},
+      liveContext: seg.liveContext || null,
       lengthFt: quantities.lengthFt,
       quantities,
       metrics,
@@ -181,6 +250,7 @@ export function aggregateCorridor(corridor) {
       maintenanceRiskScore: wAvg('maintenanceRiskScore'),
       buildabilityScore: wAvg('buildabilityScore'),
       communityBenefitScore: wAvg('communityBenefitScore'),
+      constructionCarbonPenaltyScore: wAvg('constructionCarbonPenaltyScore'),
       compositeScore: 0, // filled after ranking
     },
     segmentResults,
@@ -242,6 +312,7 @@ function generateRecommendation(corridorResults) {
   const lowestCostId = best('costUsd')
   const fastestId = best('durationDays')
   const lowestDisruptionId = best('disruptionScore')
+  const lowestConstructionPenaltyId = best('constructionCarbonPenaltyScore')
   const highestCommunityBenefitId = best('communityBenefitScore', false)
 
   const bestCorridor = corridorResults.find((c) => c.id === bestOverallId)
@@ -253,6 +324,7 @@ function generateRecommendation(corridorResults) {
   if (bestOverallId === lowestCostId) strengths.push('lowest cost')
   if (bestOverallId === fastestId) strengths.push('fastest construction')
   if (bestOverallId === lowestDisruptionId) strengths.push('lowest disruption')
+  if (bestOverallId === lowestConstructionPenaltyId) strengths.push('lowest construction carbon penalty')
   if (bestOverallId === highestCommunityBenefitId) strengths.push('highest community benefit')
 
   let summary
@@ -268,6 +340,7 @@ function generateRecommendation(corridorResults) {
     lowestCostId,
     fastestId,
     lowestDisruptionId,
+    lowestConstructionPenaltyId,
     highestCommunityBenefitId,
     summary,
   }

@@ -5,7 +5,7 @@ export default function ExistingTransitLegend({ city }) {
   if (!items.length) return null
 
   return (
-    <div className="absolute right-4 top-20 z-10 w-64 rounded-xl border border-gray-200 bg-white/95 p-3 shadow-lg backdrop-blur-sm">
+    <div className="absolute right-4 top-20 z-10 max-h-[calc(100%-6rem)] w-64 overflow-y-auto rounded-xl border border-gray-200 bg-white/95 p-3 shadow-lg backdrop-blur-sm">
       <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-gray-500">Existing Transport</p>
       <p className="mt-1 text-xs font-semibold text-gray-900">Current Valley Metro network</p>
       <div className="mt-3 space-y-2">

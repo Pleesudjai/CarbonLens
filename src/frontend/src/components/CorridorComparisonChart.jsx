@@ -16,6 +16,7 @@ export default function CorridorComparisonChart({ corridorResults }) {
     { factor: 'Disruption', ...Object.fromEntries(corridorResults.map((c) => [c.id, c.totals.disruptionScore])) },
     { factor: 'Maintenance', ...Object.fromEntries(corridorResults.map((c) => [c.id, c.totals.maintenanceRiskScore])) },
     { factor: 'Buildability', ...Object.fromEntries(corridorResults.map((c) => [c.id, c.totals.buildabilityScore])) },
+    { factor: 'Build Carbon', ...Object.fromEntries(corridorResults.map((c) => [c.id, c.totals.constructionCarbonPenaltyScore])) },
     { factor: 'Community', ...Object.fromEntries(corridorResults.map((c) => [c.id, c.totals.communityBenefitScore])) },
   ]
 
