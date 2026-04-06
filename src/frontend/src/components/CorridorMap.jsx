@@ -42,6 +42,8 @@ export default function CorridorMap({
   const detailPopupRef = useRef(null)
   const [loaded, setLoaded] = useState(false)
   const drawCoordsRef = useRef([])
+  const onDrawCompleteRef = useRef(onDrawComplete)
+  onDrawCompleteRef.current = onDrawComplete
 
   // Initialize map
   useEffect(() => {
@@ -287,14 +289,14 @@ export default function CorridorMap({
   // Finish drawing
   const finishDraw = useCallback(() => {
     const coords = drawCoordsRef.current
-    if (coords.length >= 2 && onDrawComplete) {
-      onDrawComplete({
+    if (coords.length >= 2 && onDrawCompleteRef.current) {
+      onDrawCompleteRef.current({
         type: 'FeatureCollection',
         features: [{ type: 'Feature', geometry: { type: 'LineString', coordinates: [...coords] }, properties: {} }],
       })
     }
     clearDrawPreview()
-  }, [onDrawComplete, clearDrawPreview])
+  }, [clearDrawPreview])
 
   // Draw mode: click to place points, dblclick to finish
   useEffect(() => {
