@@ -1,12 +1,10 @@
 # CarbonLens
 
-**Transit Corridor Partner**
+> 🏆 **1st Place — Innovation Hacks 2.0, Amazon Sustainability Track (April 2026)**  
+> **SMC Labs · Mobasher Group · Arizona State University**  
+> 🌐 Live demo: [regal-faloodeh-9fd58e.netlify.app](https://regal-faloodeh-9fd58e.netlify.app/)
 
 CarbonLens is a transit corridor planning tool that compares rail alternatives by embodied carbon, construction emissions, cost, buildability, and community benefit using live public data — helping agencies choose the lowest-carbon, most buildable route.
-
-Built for **Innovation Hacks 2.0** — Amazon Sustainability Track (April 2026).
-
-🌐 **Live demo:** [regal-faloodeh-9fd58e.netlify.app](https://regal-faloodeh-9fd58e.netlify.app/)
 
 ---
 
