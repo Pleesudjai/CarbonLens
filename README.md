@@ -6,6 +6,10 @@
 
 CarbonLens is a transit corridor planning tool that compares rail alternatives by embodied carbon, construction emissions, cost, buildability, and community benefit using live public data — helping agencies choose the lowest-carbon, most buildable route.
 
+## Demo Video
+
+[![CarbonLens Demo](https://img.youtube.com/vi/4IChbwKEiTA/maxresdefault.jpg)](https://www.youtube.com/watch?v=4IChbwKEiTA&t=1s)
+
 ---
 
 ## Figures
